@@ -1,0 +1,5 @@
+.claude/
+node_modules/
+sanitization-report.txt
+hooks/.state/
+docs/product-specs/

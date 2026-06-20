@@ -1,0 +1,13 @@
+{
+  "name": "awesome-autoloop",
+  "owner": { "name": "Water_Melon" },
+  "description": "An opinionated 5-agent pipeline + enforcement-hook framework for Claude Code, distributed as its own marketplace.",
+  "plugins": [
+    {
+      "name": "awesome-autoloop",
+      "source": "./",
+      "description": "An opinionated 5-agent pipeline + enforcement-hook framework for Claude Code.",
+      "license": "MIT"
+    }
+  ]
+}

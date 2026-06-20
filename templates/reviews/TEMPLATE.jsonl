@@ -1,0 +1,4 @@
+// Schema reference (NOT loaded — index.jsonl is JSONL, one object per line, NO comments).
+// Code review (Mode B):  {"pr":<n>,"head_sha":"<7+hex>","verdict":"APPROVED","ts":"<iso>","reviewer":"code-reviewer","round":1}
+// Plan review (Mode A):  {"plan":"<wave>","plan_sha":"<7+hex>","verdict":"APPROVED","mode":"A","ts":"<iso>","reviewer":"plan-reviewer"}
+// verdict ∈ APPROVED | APPROVED_WITH_NOTES | NEEDS_FIXES | NEEDS_REVISION

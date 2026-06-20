@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# notify — provider-agnostic notification helper. OPT-IN, never fail-closes.
+#
+# Config comes from env (the installer writes these into your settings.json "env" block):
+#   AAL_NOTIFY_WEBHOOK   an HTTP endpoint; the message is POSTed as {"text":"<msg>"}
+#   AAL_NOTIFY_CMD       a shell command; the message is passed as $1
+# If NEITHER is set → no-op, exit 0. ANY delivery failure → warn to stderr, exit 0.
+# A notification failure must NEVER block or fail the caller's action.
+#
+# Usage: notify "<message text>"
+set -u
+msg="${1:-}"
+
+# Unconfigured → silent no-op.
+if [ -z "${AAL_NOTIFY_WEBHOOK:-}" ] && [ -z "${AAL_NOTIFY_CMD:-}" ]; then
+  exit 0
+fi
+
+if [ -n "${AAL_NOTIFY_WEBHOOK:-}" ]; then
+  if command -v curl >/dev/null 2>&1; then
+    # -f: fail on non-2xx; -m 5: 5s timeout. Suppress body; only the exit code matters.
+    if ! curl -fsS -m 5 -X POST -H 'Content-Type: application/json' \
+         --data "{\"text\":$(printf '%s' "$msg" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(s)))' 2>/dev/null || printf '"%s"' "$(printf '%s' "$msg" | sed 's/\\/\\\\/g; s/"/\\"/g')")}" \
+         "$AAL_NOTIFY_WEBHOOK" >/dev/null 2>&1; then
+      echo "notify: webhook POST failed (unreachable / non-2xx / timeout) — continuing without blocking." >&2
+    fi
+  else
+    echo "notify: curl not found — cannot POST to the webhook; continuing without blocking." >&2
+  fi
+fi
+
+if [ -n "${AAL_NOTIFY_CMD:-}" ]; then
+  # Run the user's command with the message as $1. Never let its failure escape.
+  if ! sh -c "$AAL_NOTIFY_CMD \"\$1\"" _ "$msg" >/dev/null 2>&1; then
+    echo "notify: AAL_NOTIFY_CMD failed — continuing without blocking." >&2
+  fi
+fi
+
+exit 0
