@@ -32,10 +32,20 @@ find "$TEAMS_DIR" -maxdepth 1 -type d -mtime +2 2>/dev/null | while IFS= read -r
   rm -rf "$d" 2>/dev/null || true
 done
 
-# biggest team by member count
+# Resolve THIS session's id up front — used for both the own-team scope filter and the throttle key.
+SESSION_ID=$(json_get "$INPUT" session_id 2>/dev/null || echo global)
+
+# biggest team by member count — SCOPED to THIS session's OWN teams.
 MAX=0; BIG=""
 for cfg in "$TEAMS_DIR"/*/config.json; do
   [ -f "$cfg" ] || continue
+  # Scope to teams THIS session owns: config.leadSessionId records the owner. A FOREIGN session's
+  # team is unactionable here (cross-session shutdowns are forbidden) — warning about it is pure
+  # noise, AND its member count drifts as that session spawns agents, which defeats the throttle.
+  # SESSION_ID may be short-or-full; leadSessionId is the full uuid, so a prefix match handles both.
+  # Empty owner / unresolved session → don't filter (legacy global-scan behavior).
+  owner=$(node -e 'try{process.stdout.write(String((require(process.argv[1]).leadSessionId)||""))}catch(e){}' "$cfg" 2>/dev/null)
+  if [ "$SESSION_ID" != "global" ] && [ -n "$owner" ]; then case "$owner" in "$SESSION_ID"*) : ;; *) continue ;; esac; fi
   n=$(node -e 'try{const j=require(process.argv[1]);console.log((j.members||[]).length)}catch(e){console.log(0)}' "$cfg" 2>/dev/null)
   case "$n" in (*[!0-9]*|'') n=0 ;; esac
   if [ "$n" -gt "$MAX" ]; then MAX="$n"; BIG=$(basename "$(dirname "$cfg")"); fi
@@ -43,15 +53,14 @@ done
 
 if [ "$MAX" -gt "$CAP" ]; then
   msg="roster tripwire: team ${BIG} has ${MAX} members (cap ${CAP}). With shutdown-on-accept each live wave needs ~1 agent, so a roster this large means done/idle agents were never shut down. IMPORTANT: this hook scans ALL teams under ~/.claude/teams — if team ${BIG} is NOT this session's team, do NOTHING (another live session owns it; cross-session shutdowns are forbidden). Only if it IS yours: SendMessage a shutdown_request to each whose deliverable is already accepted (merged PR / APPROVED review / handed-off spec) — config.json members PRUNE on shutdown, freeing slots and avoiding the spawn/TeamDelete catch-22."
-  # Same-text throttle (content-hashed, per session): an IDENTICAL warning within the window is
-  # suppressed so a stuck-over-cap session doesn't re-warn every turn. A DIFFERENT warning (other
-  # team/count → different text → different hash) still shows. Window matches check-stale-agents.
-  SESSION_ID=$(json_get "$INPUT" session_id 2>/dev/null || echo global)
+  # Throttle keyed on TEAM IDENTITY (session + team name), NOT message content: a content-hash key
+  # re-fired every turn because $msg embeds the live member count, which drifts as the team grows →
+  # a new hash each turn → the window never matched. Keying on the team warns at most once per window.
   WINDOW="${ROSTER_TRIPWIRE_THROTTLE_SECS:-1800}"
   STATE_DIR="${CLAUDE_PLUGIN_DATA:-${TMPDIR:-/tmp}}/aal-state"
   mkdir -p "$STATE_DIR" 2>/dev/null || true
-  HASH=$(printf '%s' "$msg" | cksum | awk '{print $1}')
-  STATE_FILE="$STATE_DIR/roster-tripwire-${SESSION_ID:-global}-${HASH}.last"
+  TKEY=$(printf '%s' "$BIG" | tr -c 'A-Za-z0-9' _)
+  STATE_FILE="$STATE_DIR/roster-tripwire-${SESSION_ID:-global}-${TKEY}.last"
   NOW=$(date +%s)
   if [ -f "$STATE_FILE" ]; then
     LAST=$(cat "$STATE_FILE" 2>/dev/null || echo 0); case "$LAST" in (*[!0-9]*|'') LAST=0 ;; esac

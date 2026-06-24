@@ -1,7 +1,7 @@
 {
   "name": "awesome-autoloop",
   "displayName": "Awesome Autoloop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "An opinionated 5-agent pipeline + enforcement-hook framework for Claude Code.",
   "author": { "name": "Water_Melon" },
   "homepage": "https://github.com/suhang56/awesome-autoloop",
