@@ -95,7 +95,7 @@ This framework can block your tool calls. That power is the point — and so is 
 | `require-stallcheck-cron-before-dispatch` | PreToolUse / Agent | **deny** | Blocks the FIRST pipeline-role dispatch of a session until a `CronCreate(STALL-CHECK)` tool_use appears — an autonomous run needs a recurring stall-check cron. **Set `AAL_STALLCHECK=off` to skip it for interactive use.** | bash, node |
 | `block-lead-plan-approval-response` | PreToolUse / SendMessage | **deny** | Blocks the team-lead from sending a plan-approval-response directly — plan approval is `plan-reviewer` Mode A's job. | bash, node |
 | `block-lead-editing-source` | PreToolUse / Write\|Edit\|MultiEdit | **deny** | Blocks the team-lead from editing app source directly (a developer's job); harness files (`.claude/`, `docs/`, `CLAUDE.md`, hooks, …) are always allowed. Overridable via `AAL_APP_SRC_GLOBS`. | bash |
-| `require-premise-verified-before-dev` | PreToolUse / Agent | **deny** | Blocks a `developer` dispatch for a wave with no logged plan-review verdict in `.claude/plan-reviews.md`. Append `# PREMISE-VERIFIED: <evidence>` to override a trivial change. | bash, node |
+| `require-premise-verified-before-dev` | PreToolUse / Agent | **deny** | Blocks a `developer` dispatch for a wave with no logged plan-review verdict (jsonl-first: `.claude/reviews/index.jsonl`, `plan-reviews.md` legacy). Append `# PREMISE-VERIFIED: <evidence>` to override a trivial change. | bash, node |
 | `block-non-lead-git-push-merge` | PreToolUse / Bash | **deny** | Blocks `git push` / `gh pr` mutations from a worktree cwd — agents commit locally + hand off to the lead. Matches `*-wt/*`, `*/.worktrees/*`; set `AAL_WORKTREE_ROOT` for a project token. | bash, node |
 | `block-multi-worktree-per-wave` | PreToolUse / Bash | **deny** | Blocks a 2nd `git worktree add` for a wave that already has one. No-ops unless `AAL_WORKTREE_ROOT` is set; `--detach` reviewer worktrees are allowed. | bash, node |
 | `backlog-drift-check` | Stop | **warn** (exit 2) | At turn-end (throttled 30min), flags an active card whose PRIMARY alias matches a MERGED PR but isn't marked done. Fail-OPEN. | bash, node, git, gh |
@@ -117,14 +117,14 @@ These assume a `gh` + GitHub-PR + reviewer-ledger workflow — deselect them at 
 
 | Hook | Event / matcher | Fail mode | Denies / warns | Deps |
 |---|---|---|---|---|
-| `require-review-before-ship` | PreToolUse / Bash | **deny** | Blocks `git push`/`gh pr merge` unless `.claude/code-reviews.md` has an APPROVED verdict bound to the current HEAD SHA for this PR. An update-push (new commits) is allowed. | bash, node, git, gh |
+| `require-review-before-ship` | PreToolUse / Bash | **deny** | Blocks `git push`/`gh pr merge` unless `.claude/reviews/index.jsonl` (jsonl-first) or the per-verdict `reviews/pr<N>-r<round>.md` has an APPROVED verdict bound to the current HEAD SHA for this PR (`code-reviews.md` legacy fallback). An update-push (new commits) is allowed. | bash, node, git, gh |
 | `require-tests-before-ship` | PreToolUse / Bash | **deny** | Blocks `git push` on a feature branch with source changes but no test changes (Kotlin/TS/SQL-aware; unknown stacks degrade to no-block), and on failing/pending CI at HEAD. | bash, node, git, gh |
 | `require-pr-green-before-merge` | PreToolUse / Bash | **deny** | Blocks `gh pr merge` unless the PR is OPEN/not-draft, mergeable, CI green, and review APPROVED at the current HEAD SHA. | bash, node, git, gh |
 | `require-codereviewer-verdict-before-merge` | PreToolUse / Bash | **deny** | Blocks `gh pr merge` unless the review block carries a `Reviewer-type: code-reviewer` attestation (proves a fresh code-reviewer wrote it). | bash, node, git, gh |
 | `enforce-delete-branch-on-merge` | PreToolUse / Bash | **deny** | Blocks `gh pr merge` without `--delete-branch` (squash-merged branches pile up otherwise). | bash, node |
 | `block-pr-merge-stale-base` | PreToolUse / Bash | **deny** | Blocks `gh pr merge <N>` when the PR's base is stale (branched before later merges to `origin/main`) — a squash-merge could silently revert in-between work. Fail-OPEN on uncertainty. | bash, node, git, gh |
 | `require-backlog-reconciled-before-merge` | PreToolUse / Bash | **deny** | Blocks `gh pr merge` when the active board still lists a card whose PRIMARY alias matches an ALREADY-MERGED PR. Resolves the project from the last `cd <dir>`; fail-CLOSED on unresolvable repo/gh failure. | bash, node, git, gh |
-| `require-oplog-row-for-this-merge` | PreToolUse / Bash | **deny** | Blocks `gh pr merge <N>` unless the project's latest `.claude/autoloop-log-*.md` already carries a row citing `#<N>`. Self-contained (reads `<N>` from the command, no `gh` call). **No-ops unless an `autoloop-log-*.md` exists.** `AAL_OPLOG_DIR` overrides the dir. | bash, node |
+| `require-oplog-row-for-this-merge` | PreToolUse / Bash | **deny** | Blocks `gh pr merge <N>` unless any `.claude/autoloop-log-*.md` (searched across ALL of them, grep-ALL — the row may be in any session's per-session ledger) carries a row citing `#<N>`. Self-contained (reads `<N>` from the command, no `gh` call). **No-ops unless an `autoloop-log-*.md` exists.** `AAL_OPLOG_DIR` overrides the dir. | bash, node |
 
 ### ledger-hygiene · needs: bash, node, git · ON by default · fail-open (warn only)
 
@@ -132,7 +132,7 @@ These assume a `gh` + GitHub-PR + reviewer-ledger workflow — deselect them at 
 |---|---|---|---|---|
 | `ledger-size-guard` | Stop | **warn** | At turn-end (~15min), warns when a session ledger nears the 256KB Read-tool ceiling, with a directive to split it. | bash, node |
 | `worktree-count-guard` | Stop | **warn** | When `AAL_WORKTREE_ROOT` is set, warns if worktrees under it exceed the cap (`AAL_WORKTREE_CAP`, default 12). No-ops for single-tree users. | bash, git |
-| `block-truncate-existing-ledger` | PreToolUse / Bash | **deny** (fail-OPEN) | Blocks a TRUNCATING write (`>`, `Out-File`, `Set-Content`) onto an EXISTING archive/ledger `.md` (`*-archive*.md`, `BACKLOG`, `plan-reviews`, `code-reviews`, `struggle-log`, `autoloop-log`) — `>` clears the file first. Append (`>>`) or use Edit/Write. Node-absent → no-op. | bash, node |
+| `block-truncate-existing-ledger` | PreToolUse / Bash | **deny** (fail-OPEN) | Blocks a TRUNCATING write (`>`, `Out-File`, `Set-Content`) onto an EXISTING archive/ledger (`*-archive*.md`, `BACKLOG`, `plan-reviews`, `code-reviews`, `struggle-log`, `autoloop-log` `.md`, or `reviews/index.jsonl`) — `>` clears the file first. Append (`>>`) or use Edit/Write. Node-absent → no-op. | bash, node |
 
 ### dod-walk · needs: bash, node, git · ON by default · mixed (one Stop gate blocks an unwalked merge; the rest warn)
 

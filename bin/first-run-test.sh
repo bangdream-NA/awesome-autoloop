@@ -15,25 +15,25 @@ if [ -d "$TARGET" ]; then bad "--dry-run created $TARGET (must write nothing)"; 
 
 # --apply seeds everything
 node "$ROOT/skills/install/install.mjs" --plugin-root "$ROOT" --target "$TARGET" --apply >/dev/null 2>&1
-for f in plan-reviews.md reviews/index.jsonl walks/TEMPLATE.md autoloop-log-TEMPLATE.md \
-         BACKLOG.md code-reviews.md struggle-log.md CLAUDE.md rules/common/principles.md \
-         rules/common/pipeline-discipline.md .autoloop; do
+for f in plan-reviews.md reviews/index.jsonl reviews/TEMPLATE.jsonl walks/TEMPLATE.md \
+         autoloop-log-TEMPLATE.md BACKLOG.md code-reviews.md struggle-log.md CLAUDE.md \
+         rules/common/principles.md rules/common/pipeline-discipline.md .autoloop; do
   if [ -e "$TARGET/$f" ]; then ok "seed $f"; else bad "missing seed $f"; fi
 done
 for d in reviews walks; do
   if [ -d "$TARGET/$d" ]; then ok "dir $d/ materialized"; else bad "missing dir $d/"; fi
 done
 
-# op-log seed is RESOLVABLE by the merge gate's glob (existence != resolvable).
-# This MIRRORS the merge gate's exact resolver (require-oplog-row-for-this-merge.sh:
-# `ls -t autoloop-log-*.md | head -1`) — the test must reproduce the gate's own mechanism,
+# op-log seed is RESOLVABLE by the merge gate's grep-ALL (existence != resolvable).
+# This MIRRORS the merge gate's mechanism (require-oplog-row-for-this-merge.sh: grep across ALL
+# autoloop-log-*.md, not a single ls -t|head -1) — the test must reproduce the gate's OWN mechanism,
 # so `ls` (not find) is deliberate here.
 # shellcheck disable=SC2012
-RESOLVED=$( (cd "$TARGET" && ls -t autoloop-log-*.md 2>/dev/null | head -1) )
+RESOLVED=$( (cd "$TARGET" && ls autoloop-log-*.md 2>/dev/null | head -1) )
 if [ -n "$RESOLVED" ] && [ -f "$TARGET/$RESOLVED" ]; then
-  ok "op-log ls -t-resolvable ($RESOLVED)"
+  ok "op-log grep-ALL-resolvable ($RESOLVED)"
 else
-  bad "op-log seed not resolved by 'ls -t autoloop-log-*.md'"
+  bad "op-log seed not resolved by grep-ALL 'autoloop-log-*.md'"
 fi
 # op-log seed is INERT (no concrete #<digits> the merge gate would read as 'logged')
 if grep -qE '#[0-9]' "$TARGET/$RESOLVED" 2>/dev/null; then

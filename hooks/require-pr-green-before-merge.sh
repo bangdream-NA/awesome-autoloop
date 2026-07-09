@@ -119,21 +119,30 @@ if [ -f "$JSONL_FILE" ] && command -v node >/dev/null 2>&1; then
   esac
 fi
 
-REVIEW_FILE="$PROJECT_DIR/.claude/code-reviews.md"
-[ ! -f "$REVIEW_FILE" ] && deny "no .claude/code-reviews.md at $PROJECT_DIR — dispatch code-reviewer Mode B first"
-
-# Find latest review block for this PR (allow R/R2 entries; take the most recent)
-LAST_BLOCK_LINE=$(grep -nE "^## PR #${PR_NUM}\b" "$REVIEW_FILE" | tail -1 | cut -d: -f1 || echo "")
-[ -z "$LAST_BLOCK_LINE" ] && deny "no review entry for this PR in code-reviews.md"
-
-# Bound the block at the next `^## ` header (or EOF). Without bounding, the block
-# spans into other reviews' "NEEDS FIXES" / older verdicts → false-positive deny.
-NEXT_HEADER_LINE=$(awk -v start="$LAST_BLOCK_LINE" 'NR > start && /^## / { print NR; exit }' "$REVIEW_FILE")
-if [ -z "$NEXT_HEADER_LINE" ]; then
-  LATEST_BLOCK=$(sed -n "${LAST_BLOCK_LINE},\$p" "$REVIEW_FILE")
+# Markdown fallback: per-verdict file reviews/pr<N>-r<round>.md (LATEST round) → monolith legacy.
+# A per-verdict file holds ONE review → whole-file read; the monolith path keeps its ^## PR #N
+# block-bounding. The decide_verdict + HEAD-SHA bind below run identically on whichever resolves
+# (AC-R9 stricter-or-equal).
+PV=$(ls "$PROJECT_DIR"/.claude/reviews/pr${PR_NUM}-r*.md 2>/dev/null | sort -V | tail -1 || true)
+if [ -n "$PV" ] && [ -f "$PV" ]; then
+  LATEST_BLOCK=$(cat "$PV")
 else
-  END_LINE=$((NEXT_HEADER_LINE - 1))
-  LATEST_BLOCK=$(sed -n "${LAST_BLOCK_LINE},${END_LINE}p" "$REVIEW_FILE")
+  REVIEW_FILE="$PROJECT_DIR/.claude/code-reviews.md"
+  [ ! -f "$REVIEW_FILE" ] && deny "no .claude/reviews/pr${PR_NUM}-r*.md or .claude/code-reviews.md at $PROJECT_DIR — dispatch code-reviewer Mode B first"
+
+  # Find latest review block for this PR (allow R/R2 entries; take the most recent)
+  LAST_BLOCK_LINE=$(grep -nE "^## PR #${PR_NUM}\b" "$REVIEW_FILE" | tail -1 | cut -d: -f1 || echo "")
+  [ -z "$LAST_BLOCK_LINE" ] && deny "no review entry for this PR in code-reviews.md"
+
+  # Bound the block at the next `^## ` header (or EOF). Without bounding, the block
+  # spans into other reviews' "NEEDS FIXES" / older verdicts → false-positive deny.
+  NEXT_HEADER_LINE=$(awk -v start="$LAST_BLOCK_LINE" 'NR > start && /^## / { print NR; exit }' "$REVIEW_FILE")
+  if [ -z "$NEXT_HEADER_LINE" ]; then
+    LATEST_BLOCK=$(sed -n "${LAST_BLOCK_LINE},\$p" "$REVIEW_FILE")
+  else
+    END_LINE=$((NEXT_HEADER_LINE - 1))
+    LATEST_BLOCK=$(sed -n "${LAST_BLOCK_LINE},${END_LINE}p" "$REVIEW_FILE")
+  fi
 fi
 
 # Shared verdict parser (lib/verdict.sh): LAST explicit verdict candidate in the block wins,

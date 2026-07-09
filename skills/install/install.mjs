@@ -109,6 +109,7 @@ const TEMPLATE_FILES = [
   { src: "code-reviews.md", dst: "code-reviews.md", policy: "skip-if-exists" },
   { src: "plan-reviews.md", dst: "plan-reviews.md", policy: "skip-if-exists" },
   { src: "reviews/index.jsonl", dst: "reviews/index.jsonl", policy: "skip-if-exists" },
+  { src: "reviews/TEMPLATE.jsonl", dst: "reviews/TEMPLATE.jsonl", policy: "skip-if-exists" },
   { src: "walks/TEMPLATE.md", dst: "walks/TEMPLATE.md", policy: "skip-if-exists" },
   { src: "autoloop-log-TEMPLATE.md", dst: "autoloop-log-TEMPLATE.md", policy: "skip-if-exists" },
 ];

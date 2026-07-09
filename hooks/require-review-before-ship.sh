@@ -126,17 +126,50 @@ fi
 [ "$(ship_decision "$IS_MERGE" "$HAS_PR" "$LOCAL_EQ")" = "allow" ] && exit 0
 # else "review" → fall through to the review-block + verdict + HEAD-SHA gate below
 
-# Find latest review header FOR THIS PR (handles R/R2/R3 entries)
-LAST_HEADER_LINE=$(grep -nE "^## PR #${PR_NUM}\b" "$REVIEW_FILE" | tail -1 | cut -d: -f1 || echo "")
-
-if [ -z "$LAST_HEADER_LINE" ]; then
-  cat <<EOF
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"BLOCKED: PR #$PR_NUM has no review entry in .claude/code-reviews.md. Dispatch code-reviewer Mode B before pushing."}}
+# --- Structured verdict fast-path: .claude/reviews/index.jsonl (exact pr + HEAD-SHA). Mirrors
+#     require-pr-green-before-merge.sh — a matching record gives a precise verdict (no markdown
+#     substring footgun); no match / APPROVED_WITH_* → fall THROUGH to the markdown parser, so this
+#     is only ever stricter-or-equal, never looser. ---
+JSONL_FILE="$PROJECT_DIR/.claude/reviews/index.jsonl"
+if [ -f "$JSONL_FILE" ]; then
+  JV=$(cat "$JSONL_FILE" | node -e "
+    let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{let v='';
+      for(const line of d.split('\n')){ if(!line.trim()) continue;
+        try{ const r=JSON.parse(line);
+          if(String(r.pr)==='$PR_NUM' && typeof r.head_sha==='string' && r.head_sha.indexOf('$HEAD_SHORT')===0){ v=String(r.verdict||''); }
+        }catch(_){}
+      } console.log(v); });" 2>/dev/null)
+  case "$(classify_jsonl_verdict "$JV")" in
+    allow) exit 0 ;;
+    deny)  cat <<EOF
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"BLOCKED: PR #${PR_NUM} structured review verdict is ${JV} (.claude/reviews/index.jsonl)."}}
 EOF
-  exit 0
+           exit 0 ;;
+    *)     : ;;  # no match / APPROVED_WITH_* → fall through to the markdown parser
+  esac
 fi
 
-LATEST_BLOCK=$(sed -n "${LAST_HEADER_LINE},\$p" "$REVIEW_FILE")
+# Markdown fallback: per-verdict file reviews/pr<N>-r<round>.md (LATEST round) → monolith legacy.
+# Each per-verdict file holds ONE review, so a whole-file read replaces the monolith's ^## PR #N
+# block-bounding. `sort -V` orders r1 < r2 < r10 correctly. The verdict + HEAD-SHA checks below
+# run identically on whichever file resolves (AC-R9 stricter-or-equal).
+PV=$(ls "$PROJECT_DIR"/.claude/reviews/pr${PR_NUM}-r*.md 2>/dev/null | sort -V | tail -1 || true)
+if [ -n "$PV" ] && [ -f "$PV" ]; then
+  LATEST_BLOCK=$(cat "$PV")
+else
+  [ -f "$REVIEW_FILE" ] || { cat <<EOF
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"BLOCKED: PR #$PR_NUM has no review entry — no .claude/reviews/pr${PR_NUM}-r*.md and no .claude/code-reviews.md. Dispatch code-reviewer Mode B before pushing."}}
+EOF
+    exit 0; }
+  LAST_HEADER_LINE=$(grep -nE "^## PR #${PR_NUM}\b" "$REVIEW_FILE" | tail -1 | cut -d: -f1 || echo "")
+  if [ -z "$LAST_HEADER_LINE" ]; then
+    cat <<EOF
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"BLOCKED: PR #$PR_NUM has no review entry in .claude/reviews/pr${PR_NUM}-r*.md or .claude/code-reviews.md. Dispatch code-reviewer Mode B before pushing."}}
+EOF
+    exit 0
+  fi
+  LATEST_BLOCK=$(sed -n "${LAST_HEADER_LINE},\$p" "$REVIEW_FILE")
+fi
 
 # Verdict via shared parser (lib/verdict.sh): last explicit candidate wins, rejection beats
 # same-line APPROVED, only EXACT APPROVED allows. Replaces a bare `grep -qi APPROVED`.

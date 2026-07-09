@@ -52,7 +52,7 @@ count-summary patterns in touched specs of the PR. If a summary line is
 detected WITHOUT a marker within 5 lines after, emit a MEDIUM advisory pointing
 at the spec + line. Does NOT block APPROVED.
 
-Reviewer grep recipe (committed to `.claude/code-reviews.md` template):
+Reviewer grep recipe (recorded in the reviewer's per-verdict file under `.claude/reviews/`):
 
 ```bash
 rg -n "Distribution:|Final tally:|Total:" $(git diff main --name-only | rg '^docs/product-specs/.*\.md$')

@@ -60,11 +60,11 @@ design.
 ### 3. Dispatch the planner → plan-reviewer (Mode A)
 
 Spin up the team (`spawn-team`) and dispatch the `planner` to expand your spec into a full plan. Then
-dispatch the `plan-reviewer` for a **Mode-A** plan-doc review. Its verdict lands as an APPROVED block
-in `.claude/plan-reviews.md` (the seed `templates/plan-reviews.md` documents the block format). The
-architect dispatch gate (`backlog-sop-validate`, pre-dispatch) reads that file — it requires an
-APPROVED Mode-A verdict whose heading wave-token matches your wave BEFORE it lets an architect run. A
-self-written `PLAN_APPROVED` line on the board does NOT satisfy it.
+dispatch the `plan-reviewer` for a **Mode-A** plan-doc review. Its verdict lands as a per-verdict file
+`.claude/reviews/<wave>-planrev-r<N>.md` + a machine-authoritative line in `.claude/reviews/index.jsonl`.
+The architect dispatch gate (`backlog-sop-validate`, pre-dispatch) reads the jsonl **FIRST** (the frozen
+`plan-reviews.md` monolith is a legacy fallback) — it requires an APPROVED Mode-A verdict for your wave
+BEFORE it lets an architect run. A self-written `PLAN_APPROVED` line on the board does NOT satisfy it.
 
 ### 4. Dispatch the architect
 
@@ -84,8 +84,9 @@ conventional format with no `Co-Authored-By` trailer (`block-coauthor-commit` +
 ### 6. Code review — Mode B
 
 When the PR is open with CI green, dispatch a FRESH `code-reviewer` for a **Mode-B** PR review. Its
-APPROVED verdict (with a `Reviewer-type: code-reviewer` attestation) lands in
-`.claude/code-reviews.md` + `.claude/reviews/index.jsonl`. The merge gates require it:
+APPROVED verdict (with a `Reviewer-type: code-reviewer` attestation) lands as a per-verdict file
+`.claude/reviews/pr<N>-r<round>.md` + a line in `.claude/reviews/index.jsonl` (jsonl-first; the
+`code-reviews.md` monolith is frozen legacy). The merge gates require it:
 `require-review-before-ship` + `require-codereviewer-verdict-before-merge` block a merge without a
 fresh code-reviewer's APPROVED verdict bound to the current HEAD SHA.
 

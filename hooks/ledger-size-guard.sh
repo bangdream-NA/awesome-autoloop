@@ -29,6 +29,7 @@ if [ -n "$PROJECT_DIR" ]; then
   LEDGERS="$PROJECT_DIR/.claude/BACKLOG.md
 $PROJECT_DIR/.claude/code-reviews.md
 $PROJECT_DIR/.claude/plan-reviews.md
+$PROJECT_DIR/.claude/reviews/index.jsonl
 $PROJECT_DIR/.claude/struggle-log.md"
 fi
 LEDGERS="$LEDGERS

@@ -46,18 +46,26 @@ case "$COMMON_DIR" in
   */.git/worktrees/*) MAIN_GIT="${COMMON_DIR%/worktrees/*}"; PROJECT_DIR="${MAIN_GIT%/.git}" ;;
 esac
 
-REVIEW_FILE="$PROJECT_DIR/.claude/code-reviews.md"
-[ ! -f "$REVIEW_FILE" ] && deny "no .claude/code-reviews.md — dispatch a FRESH code-reviewer (Mode B) first"
-
-LAST_BLOCK_LINE=$(grep -nE "^## PR #${PR_NUM}\b" "$REVIEW_FILE" | tail -1 | cut -d: -f1 || echo "")
-[ -z "$LAST_BLOCK_LINE" ] && deny "no review entry for this PR in code-reviews.md — dispatch a FRESH code-reviewer"
-
-NEXT_HEADER_LINE=$(awk -v start="$LAST_BLOCK_LINE" 'NR > start && /^## / { print NR; exit }' "$REVIEW_FILE")
-if [ -z "$NEXT_HEADER_LINE" ]; then
-  LATEST_BLOCK=$(sed -n "${LAST_BLOCK_LINE},\$p" "$REVIEW_FILE")
+# Per-verdict file reviews/pr<N>-r<round>.md (LATEST round) → monolith legacy. Q6: the attestation is
+# a `.md`-line concept (symmetric with the code-reviewer's per-verdict write); require-pr-green owns
+# the jsonl verdict+HEAD-SHA bind, so this gate reads the per-verdict `.md`, not jsonl.
+PV=$(ls "$PROJECT_DIR"/.claude/reviews/pr${PR_NUM}-r*.md 2>/dev/null | sort -V | tail -1 || true)
+if [ -n "$PV" ] && [ -f "$PV" ]; then
+  LATEST_BLOCK=$(cat "$PV")
 else
-  END_LINE=$((NEXT_HEADER_LINE - 1))
-  LATEST_BLOCK=$(sed -n "${LAST_BLOCK_LINE},${END_LINE}p" "$REVIEW_FILE")
+  REVIEW_FILE="$PROJECT_DIR/.claude/code-reviews.md"
+  [ ! -f "$REVIEW_FILE" ] && deny "no .claude/reviews/pr${PR_NUM}-r*.md or code-reviews.md — dispatch a FRESH code-reviewer (Mode B) first"
+
+  LAST_BLOCK_LINE=$(grep -nE "^## PR #${PR_NUM}\b" "$REVIEW_FILE" | tail -1 | cut -d: -f1 || echo "")
+  [ -z "$LAST_BLOCK_LINE" ] && deny "no review entry for this PR in code-reviews.md — dispatch a FRESH code-reviewer"
+
+  NEXT_HEADER_LINE=$(awk -v start="$LAST_BLOCK_LINE" 'NR > start && /^## / { print NR; exit }' "$REVIEW_FILE")
+  if [ -z "$NEXT_HEADER_LINE" ]; then
+    LATEST_BLOCK=$(sed -n "${LAST_BLOCK_LINE},\$p" "$REVIEW_FILE")
+  else
+    END_LINE=$((NEXT_HEADER_LINE - 1))
+    LATEST_BLOCK=$(sed -n "${LAST_BLOCK_LINE},${END_LINE}p" "$REVIEW_FILE")
+  fi
 fi
 
 # THE check: the code-reviewer self-stamps `Reviewer-type: code-reviewer` in its verdict.

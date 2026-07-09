@@ -13,7 +13,7 @@ MANDATORY RULES (from hooks — cannot be ignored):
 2. NEVER write app source code directly — dispatch a developer agent
 3. NEVER use the bare Agent tool — pass a team_name string (any value) in the Agent call (no separate TeamCreate step; it was removed in Claude Code v2.1.178)
 4. MUST push to GitHub after every commit
-5. MUST save code reviews to .claude/code-reviews.md
+5. MUST save code reviews as a per-verdict file .claude/reviews/pr<N>-r<round>.md + one line in .claude/reviews/index.jsonl (gates read the jsonl first; code-reviews.md is frozen legacy)
 6. NEVER push the .claude/ directory to GitHub
 7. NEVER add Co-Authored-By lines to commits
 EOF

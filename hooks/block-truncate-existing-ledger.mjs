@@ -21,7 +21,10 @@ import { resolve } from 'node:path';
 
 // protected basename: an *archive*.md OR a known append-only ledger
 const PROT_ARCHIVE = /archive[\w.-]*\.md$/i;
-const PROT_LEDGER  = /(^|[\\/])(BACKLOG|plan-reviews|code-reviews|struggle-log|autoloop-log[\w.-]*)\.md$/i;
+// The per-project machine-authoritative reviews store reviews/index.jsonl is now a protected ledger
+// (a truncating `>` blinds every jsonl-first gate). Its per-verdict `.md` siblings are single-writer
+// (low risk) → NOT protected (Q2).
+const PROT_LEDGER  = /(^|[\\/])(BACKLOG|plan-reviews|code-reviews|struggle-log|autoloop-log[\w.-]*)\.md$|(^|[\\/])reviews[\\/]index[\w.-]*\.jsonl$/i;
 const isProt = (t) => PROT_ARCHIVE.test(t) || PROT_LEDGER.test(t);
 
 // resolve a target against the likely roots; return the existing path or ''
@@ -46,7 +49,7 @@ function main() {
   let m;
   while ((m = reRedir.exec(cmd))) { const t = m[2]; if (t && isProt(t)) hits.push({ form: "'>' (truncate)", target: t }); }
   // 2) PowerShell Out-File / Set-Content (skip -Append)
-  const rePs = /\b(Out-File|Set-Content)\b([^\n|;]*?)(['"])?([^\s'"|;&)]+\.md)\3?/gi;
+  const rePs = /\b(Out-File|Set-Content)\b([^\n|;]*?)(['"])?([^\s'"|;&)]+\.(?:md|jsonl))\3?/gi;
   while ((m = rePs.exec(cmd))) { const t = m[4]; if (t && isProt(t) && !/-Append\b/i.test(m[2])) hits.push({ form: m[1], target: t }); }
 
   // only DENY when the target FILE EXISTS (a fresh new slot is allowed)

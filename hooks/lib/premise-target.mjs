@@ -21,8 +21,9 @@
 // Anything else / any throw → caller treats as DENY (fail-closed).
 //
 // Args:  argv[2] = plan-reviews.md path   argv[3] = BACKLOG.md path
-// Env override (tests):  AAL_PLAN_REVIEWS, AAL_BACKLOG  (take precedence over args)
+// Env override (tests):  AAL_PLAN_REVIEWS, AAL_BACKLOG, AAL_REVIEWS_JSONL  (take precedence over args)
 import { readFileSync } from "node:fs";
+import { jsonlPlanVerdict } from "./plan-verdict.mjs";
 
 function readMaybe(p) {
   if (!p) return "";
@@ -116,16 +117,34 @@ function main() {
   const fallbackDir = process.env.CLAUDE_PROJECT_DIR ? process.env.CLAUDE_PROJECT_DIR + "/.claude" : null;
   const prPath = process.env.AAL_PLAN_REVIEWS || process.argv[2] || (projDir ? projDir + "/plan-reviews.md" : (fallbackDir ? fallbackDir + "/plan-reviews.md" : null));
   const blPath = process.env.AAL_BACKLOG   || process.argv[3] || (projDir ? projDir + "/BACKLOG.md"      : (fallbackDir ? fallbackDir + "/BACKLOG.md"      : null));
-  const pr = lc(readMaybe(prPath));
-  if (!pr) { process.stdout.write("NOVERDICT\t" + target); return; }
+  // jsonl path (parallel to prPath); AAL_REVIEWS_JSONL override for fixtures/portability.
+  const jsonlPath = process.env.AAL_REVIEWS_JSONL
+    || (projDir ? projDir + "/reviews/index.jsonl"
+       : (fallbackDir ? fallbackDir + "/reviews/index.jsonl" : null));
 
+  // Wave-identity forms are computed BEFORE the verdict read (both the jsonl + monolith paths use
+  // them). conservativeForms(target) ∪ specific BACKLOG aliases — behavior for the monolith path
+  // is identical to before (same key set, same presence check).
   const forms = conservativeForms(target);
   backlogAliases(readMaybe(blPath), target).forEach((a) => {
     // only trust an alias specific enough to not cross-collide
     if (segs(a).length >= 3 && a.length >= 10) forms.add(a);
   });
+  const keys = [...forms];
 
-  for (const form of forms) {
+  // jsonl-first (machine-authoritative, shared resolver — identical wave-match + classification as the
+  // architect gate, so the two plan-verdict gates cannot drift = BLOCKER-1 root closed). APPROVED-only
+  // (stricter than the monolith presence-check, and correct: a developer should not run on a
+  // NEEDS_REVISION plan). 'none' → fall through to the monolith legacy presence-check.
+  if (jsonlPath) {
+    const jv = jsonlPlanVerdict(jsonlPath, keys);
+    if (jv === "approved") { process.stdout.write("OK"); return; }
+    if (jv === "rejected") { process.stdout.write("NOVERDICT\t" + target); return; }
+  }
+  // ---- legacy fallback: plan-reviews.md monolith presence-check (UNCHANGED) ----
+  const pr = lc(readMaybe(prPath));
+  if (!pr) { process.stdout.write("NOVERDICT\t" + target); return; }
+  for (const form of keys) {
     if (pr.includes(form)) { process.stdout.write("OK"); return; }
   }
   process.stdout.write("NOVERDICT\t" + target);

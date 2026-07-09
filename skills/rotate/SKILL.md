@@ -26,7 +26,7 @@ It MUST let a cold session resume with zero context. Verify/update it to contain
   method, language preference, agents-local-only + isolated-worktrees, no `.claude/` in git).
 - **DONE + LIVE** this session (PR#s + DoD status).
 - **IN-FLIGHT** — for EACH, the DURABLE pickup point, NOT the in-process agent: open PR # + SHA,
-  committed branch + worktree, or the logged `code-reviews.md` / `plan-reviews.md` verdict. (The new
+  committed branch + worktree, or the logged per-verdict `reviews/*.md` + `reviews/index.jsonl` verdict. (The new
   session can't receive the old session's agent SendMessages — it re-picks-up from these. A
   mid-coding dev with no commit yet → note "re-dispatch" or check its worktree.)
 - **QUEUED** waves + **NEXT ACTIONS** + any LEAD-owed pre-merge tasks.
@@ -34,8 +34,10 @@ It MUST let a cold session resume with zero context. Verify/update it to contain
   aliases, etc. — whatever your project's gates require).
 - **STATE**: `main` HEAD sha, worktree count, team name, stall-cron note.
 
-Edit large files (BACKLOG / op-log / code-reviews) via your shell's append (`cat >>`) or a string
+Edit large files (BACKLOG / op-log) via your shell's append (`cat >>`) or a string
 replace — the Edit tool needs a prior Read that clears on compaction, and these ledgers are large.
+`cat >>` is fine for `.md` ledgers but NEVER for `reviews/index.jsonl` — a missing trailing newline
+fuses two JSON objects onto one physical line and blinds every jsonl-first gate; use `printf '%s\n'`.
 
 ### 2. Launch the fresh session
 Launch a fresh `claude` session **from the HOME cwd** seeded with the single token `RESUME-ROTATION`.

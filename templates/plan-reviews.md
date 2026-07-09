@@ -1,12 +1,13 @@
-# Plan reviews
+# Plan reviews — FROZEN LEGACY
 
-> Append one block per plan review here. The architect dispatch gate
-> (backlog-sop-validate.mjs, --mode pre-dispatch) reads this file: it requires an APPROVED
-> Mode-A verdict block whose heading wave-token matches the dispatched wave BEFORE it lets an
-> architect run. This is the plan-reviewer's OWN artifact — a self-written BACKLOG "PLAN_APPROVED"
-> line does NOT satisfy the gate.
+> **FROZEN LEGACY — do NOT append here.** Reviewers now write each verdict as a per-verdict file
+> under `reviews/` (`<wave>-planrev-r<N>.md`) + a machine-authoritative line in
+> `reviews/index.jsonl`. The architect dispatch gate (backlog-sop-validate.mjs, --mode pre-dispatch)
+> reads `reviews/index.jsonl` **FIRST**; this monolith is a legacy fallback only (still gate-read for
+> pre-migration adopters, but never a new append target). A self-written BACKLOG "PLAN_APPROVED" line
+> does NOT satisfy the gate.
 >
-> Block format (the gate greps the heading shape + the verdict line):
+> Legacy block format (the gate's fallback greps the heading shape + the verdict line):
 
 ## Plan review: <wave> @<plan-sha>
 - **Reviewer**: plan-reviewer (Mode A)

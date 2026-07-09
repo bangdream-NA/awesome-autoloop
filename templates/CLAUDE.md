@@ -15,7 +15,11 @@ harness task store.
 2. NEVER write app source code directly as the lead — dispatch a developer agent.
 3. Push to GitHub only when the user asks; never push `.claude/` or `Co-Authored-By`
    lines.
-4. Save code reviews to `.claude/code-reviews.md` (the merge gate reads it).
+4. Save reviews as a per-verdict file `.claude/reviews/pr<N>-r<round>.md` (code) or
+   `.claude/reviews/<wave>-planrev-r<N>.md` (plan) + one machine-authoritative line in
+   `.claude/reviews/index.jsonl` (the merge/dispatch gates read the jsonl FIRST; the old
+   `code-reviews.md`/`plan-reviews.md` monoliths are frozen legacy fallbacks). Ledgers are
+   never a shared cross-session append target — an agent writes only its OWN project's docs.
 5. The harness TaskCreate / TaskList / TaskUpdate store is BANNED — track every wave
    as a row in `{{BACKLOG_PATH}}`; dispatch + status + hand-off are all SendMessage.
 6. CROSS-AUDIT; TRUST NO ONE — re-verify every consequential claim against the LIVE

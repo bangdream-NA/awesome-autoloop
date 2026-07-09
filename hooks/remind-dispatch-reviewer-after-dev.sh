@@ -34,7 +34,7 @@ cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "PostToolUse",
-    "additionalContext": "DEV SHUTDOWN ('${MSG}'). CONDITIONAL: IF this dev has an un-reviewed in-flight PR (its delivery is NOT yet code-reviewed+merged) → dispatch a FRESH code-reviewer (Mode B) in THIS SAME response; delivery + reviewer dispatch must be atomic. IF this is post-merge / idle roster cleanup (its PR already has an APPROVED verdict and is merged) → IGNORE this; do NOT dispatch a phantom reviewer for already-reviewed work. Check first-hand (gh pr view / code-reviews.md) before dispatching."
+    "additionalContext": "DEV SHUTDOWN ('${MSG}'). CONDITIONAL: IF this dev has an un-reviewed in-flight PR (its delivery is NOT yet code-reviewed+merged) → dispatch a FRESH code-reviewer (Mode B) in THIS SAME response; delivery + reviewer dispatch must be atomic. IF this is post-merge / idle roster cleanup (its PR already has an APPROVED verdict and is merged) → IGNORE this; do NOT dispatch a phantom reviewer for already-reviewed work. Check first-hand (gh pr view / .claude/reviews/) before dispatching."
   }
 }
 EOF

@@ -11,6 +11,23 @@ block in `CLAUDE.md`). In any other repo every hook self-skips. If a gate fired 
 expect, that repo carries one of those markers — opt out with `AAL_GATES=` (empty) in its
 `settings.json` env, or delete the marker.
 
+> **Ledger model decoder (per-session / per-verdict / per-project).** The gates read a per-project,
+> per-session, per-verdict ledger layout — not one shared monolith:
+> - **Op-logs are per-session**: each session appends to its OWN `.claude/autoloop-log-<date>-<sid8>.md`
+>   (`sid8` = first 8 alphanumeric chars of the session id). The merge gate greps ALL of them (grep-ALL)
+>   for the `#<N>` row; `oplog-turn-reminder` rotates ONLY your own `sid8` ledger (two-class), never
+>   another session's.
+> - **Reviews are per-verdict files**: plan-review → `.claude/reviews/<wave>-planrev-r<N>.md`; code-review
+>   → `.claude/reviews/pr<N>-r<round>.md`; plus one machine-authoritative line per verdict in the
+>   per-project `.claude/reviews/index.jsonl`.
+> - **jsonl-first for BOTH plan-verdict gates**: the architect gate AND the developer gate read
+>   `reviews/index.jsonl` FIRST; the `plan-reviews.md` / `code-reviews.md` monoliths are frozen legacy
+>   fallbacks only.
+> - **Newline-terminate guard**: every `reviews/index.jsonl` append uses `printf '%s\n'` + a last-line
+>   parse-check — a bare `cat file >>` can fuse two JSON objects onto one line and blind every gate.
+> - **Project isolation**: an agent writes ONLY inside its OWN project's `.claude/` (MAIN resolved via
+>   `git --git-common-dir` from a worktree), never a sibling's or the home `.claude/`.
+
 ---
 
 ## By gate group
@@ -40,13 +57,13 @@ footgun-preventer must not block a legitimate commit when node is absent).
 | spawn denied: Mode-B not code-reviewer | a PR review was dispatched to a non-`code-reviewer` role | dispatch the review to a fresh `code-reviewer` |
 | BACKLOG.md write denied: non-whitelisted `### [STATUS]` | you wrote a `[DONE]`/✅/MERGED card (or an ad-hoc status) onto the active board | move the done card to `BACKLOG-archive.md`; keep an unverified DoD at `[REVIEW]` or an external dep at `[BLOCKED]` — status must be one of QUEUED/IN-DEV/REVIEW/BLOCKED/USER-GATED |
 | BACKLOG.md write denied: new card missing skeleton | a NEW card lacks a whitelisted status or an `aliases:`/`problem:`/`fix:` line | add the missing skeleton fields (content may be a `<TODO>` placeholder); editing an existing card is never blocked |
-| dispatch denied: SOP pre-dispatch (no plan-review / no ARCH_APPROVED) | you dispatched an `architect` with no APPROVED plan-review verdict in `plan-reviews.md`, or a `developer` with no `ARCH_APPROVED` proof on the card | run the prior stage first — plan-review (Mode A) before the architect, the architect before the developer — then record the verdict / `ARCH_APPROVED` line on the card |
+| dispatch denied: SOP pre-dispatch (no plan-review / no ARCH_APPROVED) | you dispatched an `architect` with no APPROVED plan-review verdict (the gate reads `.claude/reviews/index.jsonl` first, `plan-reviews.md` legacy fallback), or a `developer` with no `ARCH_APPROVED` proof on the card | run the prior stage first — plan-review (Mode A) before the architect, the architect before the developer — then record the verdict / `ARCH_APPROVED` line on the card |
 | dispatch denied: SOP pre-review (no real PR# + SHA) | you dispatched a `code-reviewer` (Mode B) without a real PR number and a pinned HEAD SHA in the brief (or `DEV_DELIVERED` + `PR_OPENED` on the card) | push + open the PR, then pin the reviewed commit in the dispatch (`#<N>` + `@<sha>`, re-pin via `gh pr view <N> --json headRefOid`) |
 | dispatch denied: code-reviewer for a plan review | you dispatched `code-reviewer` for a Mode-A plan-doc review (its prompt named the plan / Mode A / pre-architect) | re-dispatch with `subagent_type: plan-reviewer` — Mode-A plan review is the dedicated plan-reviewer's job; `code-reviewer` is Mode B (post-Dev PR) only. A genuine Mode-B review that mentions "the plan" → add an explicit `Mode B` marker to the prompt |
 | dispatch denied: no stall-check cron | you dispatched your FIRST pipeline-role agent this session with no `CronCreate(STALL-CHECK)` in the transcript | an AUTONOMOUS-run gate: create the stall-check cron (the deny text carries the exact `CronCreate({cron:'7,37 * * * *', recurring:true, ...})`) then re-dispatch — OR if you're driving the pipeline interactively, set `AAL_STALLCHECK=off` in your settings.json env to skip it (does NOT disable the rest of pipeline-roles) |
 | SendMessage denied: lead plan-approval | the team-lead tried to send a plan-approval-response message directly | dispatch `plan-reviewer` Mode A first, then forward ITS verdict (APPROVED / NEEDS-REVISION + quoted feedback) to the planner — don't approve a plan on your own judgment |
 | edit denied: lead editing app source | the team-lead tried to Write/Edit a file under a source tree (`src/`, `app/`, `apps/`, `lib/`, `packages/`, …) directly | dispatch a developer agent to make the change. Harness files (`.claude/`, `docs/`, `CLAUDE.md`, hooks, rules) are always allowed; if the gate is over-matching your repo's layout, set `AAL_APP_SRC_GLOBS` to a tighter regex |
-| dispatch denied: developer with no premise verdict | you dispatched a `developer` for a wave with no logged plan-review verdict in `.claude/plan-reviews.md` | dispatch the `plan-reviewer` (Mode A) for this wave first so its premise is LIVE-verified, then re-dispatch the developer — OR for a genuinely trivial no-premise change, append `# PREMISE-VERIFIED: <the live evidence you gathered>` to the dispatch prompt to override |
+| dispatch denied: developer with no premise verdict | you dispatched a `developer` for a wave with no logged plan-review verdict (the dev gate reads `.claude/reviews/index.jsonl` first, `.claude/plan-reviews.md` legacy fallback) | dispatch the `plan-reviewer` (Mode A) for this wave first so its premise is LIVE-verified, then re-dispatch the developer — OR for a genuinely trivial no-premise change, append `# PREMISE-VERIFIED: <the live evidence you gathered>` to the dispatch prompt to override |
 | Bash denied: push/merge from a worktree | you ran `git push` or a `gh pr` mutation from a worktree cwd (you = a pipeline agent, not the lead) | commit locally, then SendMessage the team-lead (branch, SHA, file list, F-gate results) and STOP — the lead rebases + pushes + opens the PR from the main checkout. If you ARE the lead, `cd` into the main checkout first |
 | Bash denied: second worktree for a wave | you ran `git worktree add` for a wave that already has a worktree | reuse the wave's existing worktree (ONE per wave, all stages share it). A read-only reviewer needing isolation can use `--detach`. This gate only fires when `AAL_WORKTREE_ROOT` is set |
 | Stop-time nags (stale agents, roster tripwire, prune-inboxes, backlog drift) | warn-only reminders — `backlog-drift-check` flags an active card whose alias matches a merged PR but isn't marked done; `backlog-drift-guard` warns on a non-whitelisted status header / lingering `[DONE]` / legacy `状态:` line; the roster tripwire warns when a team exceeds the cap — the roster warning now cautions that it scans ALL teams, so if the over-cap team isn't yours, do nothing | act on the nudge or ignore it; they never block. For a drift warn: verify the named card live, then mark it done + move it to `BACKLOG-archive.md` (or fix its status if a deploy/verify is still outstanding) |
@@ -80,14 +97,14 @@ footgun-preventer must not block a legitimate commit when node is absent).
 
 | When you see | It means | Do this |
 |---|---|---|
-| push/merge denied: no APPROVED review | `code-reviews.md` has no APPROVED verdict bound to the current HEAD for this PR | get a code-reviewer APPROVED verdict at the current SHA, then retry |
+| push/merge denied: no APPROVED review | no APPROVED verdict bound to the current HEAD for this PR in `.claude/reviews/index.jsonl` (or the per-verdict `reviews/pr<N>-r<round>.md`); the `code-reviews.md` monolith is legacy fallback | get a code-reviewer APPROVED verdict at the current SHA, then retry |
 | merge denied: PR not green / not mergeable | CI isn't green, the PR is draft, or it has conflicts | wait for CI / un-draft / resolve conflicts |
 | merge denied: no `Reviewer-type: code-reviewer` | the review block lacks the fresh-reviewer attestation | ensure the reviewer wrote the `Reviewer-type: code-reviewer` line |
 | merge denied: missing `--delete-branch` | you merged without `--delete-branch` | add `--delete-branch` (squash-merges otherwise pile up un-pruned) |
 | merge denied: stale base | the PR branched before later merges to `origin/main`; a squash now could revert in-between work | `git fetch && git rebase origin/main`, push, then merge |
 | merge denied: board not reconciled | the active board still lists a card whose PRIMARY alias matches an ALREADY-MERGED PR (merged but never archived) | archive the merged-but-unarchived prior card (append a `### ✅ name · DONE #N @sha` block to `BACKLOG-archive.md`, delete the card from the active board), then re-merge. Repo unresolvable / `gh` failure also denies (fail-closed) — fix the origin remote / `gh` auth |
 | merge denied (fail-closed): cannot resolve which project | the command has no `cd <project-dir>`, so the gate can't tell WHICH project's board to reconcile | re-run as `cd <project> && gh pr merge <N>`. The gate resolves the project from the **last `cd`** in the command and never defaults to another project's board (R-13 cross-wire fix) |
-| merge denied: no op-log row for #N | the project's latest `.claude/autoloop-log-*.md` has no row citing this PR | add a `feature·problem·proof` row citing `#N` to the latest `autoloop-log-*.md` FIRST, then re-merge. Write the explicit PR number (`gh pr merge <N>` — a bare `gh pr merge` is denied). No-ops if your project has no `autoloop-log-*.md` (the op-log convention is opt-in) |
+| merge denied: no op-log row for #N | NO `.claude/autoloop-log-*.md` (searched across ALL of them, grep-ALL) carries a row citing this PR | add a `feature·problem·proof` row citing `#N` to any `autoloop-log-*.md` (own or legacy) FIRST, then re-merge. Write the explicit PR number (`gh pr merge <N>` — a bare `gh pr merge` is denied). No-ops if your project has no `autoloop-log-*.md` (the op-log convention is opt-in) |
 
 These need `gh` + a GitHub-PR + reviewer-ledger workflow. If that's not your setup, deselect
 `merge-gates` in the installer. They fail CLOSED on a missing dependency — EXCEPT the stale-base

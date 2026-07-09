@@ -28,6 +28,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
+import { jsonlPlanVerdict } from './lib/plan-verdict.mjs';
 
 const argMode = (() => { const i = process.argv.indexOf('--mode'); if (i >= 0) return process.argv[i + 1]; const f = process.argv.find((a) => a.startsWith('--mode=')); return f ? f.split('=')[1] : 'report'; })();
 // Default board for --mode report (a manual CLI run with no dispatch prompt). The dispatch gates
@@ -77,6 +78,7 @@ const locateCardByPriority = (cands, cards) => {
 //   false = plan-reviews readable but NO approved verdict for the wave (→ gate denies)
 //   null  = NO plan-reviews file readable at all (infra anomaly → caller fails OPEN to the legacy line)
 let PLAN_REVIEWS = process.env.AAL_PLAN_REVIEWS || path.join(CLAUDE_DIR, 'plan-reviews.md');
+let REVIEWS_JSONL = process.env.AAL_REVIEWS_JSONL || path.join(CLAUDE_DIR, 'reviews', 'index.jsonl');
 const planReviewFiles = () => {
   const dir = path.dirname(PLAN_REVIEWS), active = path.basename(PLAN_REVIEWS);
   let parts = [];
@@ -84,7 +86,15 @@ const planReviewFiles = () => {
   return [PLAN_REVIEWS, ...parts.sort().reverse().map((f) => path.join(dir, f))]; // active first (hot path), then archives newest-first
 };
 const planReviewApproved = (cands, card) => {
-  const keys = [...new Set([...cands, card.slug, ...card.aliases].filter(Boolean))];
+  const keys = [...new Set([...cands, card.slug, ...card.aliases].filter(Boolean).map(norm))];
+  // jsonl-first (machine-authoritative, shared resolver — identical wave-match + classification as the
+  // developer gate, so the two plan-verdict gates cannot drift = BLOCKER-1 root closed). 'approved' →
+  // true; 'rejected' → false (stricter: a jsonl rejection beats a stale monolith APPROVED); 'none' →
+  // fall through to the plan-reviews*.md monolith legacy scan.
+  const jv = jsonlPlanVerdict(REVIEWS_JSONL, keys);
+  if (jv === 'approved') return true;
+  if (jv === 'rejected') return false;
+  // ---- legacy fallback: plan-reviews*.md monolith (UNCHANGED below this line) ----
   let anyReadable = false;
   for (const file of planReviewFiles()) {
     const txt = rd(file);
@@ -158,6 +168,7 @@ const rerouteBoard = (prompt) => {
   if (board.toLowerCase() === String(BACKLOG).replace(/\\/g, '/').toLowerCase()) return;
   BACKLOG = board; CLAUDE_DIR = dir;
   PLAN_REVIEWS = process.env.AAL_PLAN_REVIEWS || path.join(dir, 'plan-reviews.md');
+  REVIEWS_JSONL = process.env.AAL_REVIEWS_JSONL || path.join(dir, 'reviews', 'index.jsonl');
   cards = parseCards(board);
 };
 
@@ -356,20 +367,25 @@ const archiveFindings = [];
 
 let oplogFindings = [], oplogDebt = 0, oplogPath = process.env.AAL_OPLOG;
 {
-  if (!oplogPath) {
-    try { const files = readdirSync(CLAUDE_DIR).filter((x) => /^autoloop-log-.*\.md$/.test(x)).sort(); oplogPath = files.length ? path.join(CLAUDE_DIR, files[files.length - 1]) : null; } catch { oplogPath = null; }
-  }
-  const lines = splitL(rd(oplogPath));
-  // target schema entries: `## ts · wave · ACTION` then `- field: value` lines
-  for (let i = 0; i < lines.length; i++) {
-    const h = lines[i].match(/^##\s+(.+·.+·.+)$/);
-    if (!h) { if (/^\s*-\s+\d{1,2}:\d/.test(lines[i])) oplogDebt++; continue; } // free-prose `- HH:MM` rows = migration debt
-    const fields = {};
-    for (let j = i + 1; j < lines.length && !/^#{2}\s/.test(lines[j]); j++) {
-      const fm = lines[j].match(/^\s*-\s*(\w+)\s*[:：]\s*(.+)$/);
-      if (fm) fields[fm[1].toLowerCase()] = fm[2].trim();
+  // Advisory report-scan: iterate ALL per-session autoloop-log-*.md (own + legacy), not just the
+  // single last-sorted file — a row can live in any session's ledger under the per-session model.
+  // AAL_OPLOG pins one file (fixtures/portability). Report-only; never gates.
+  let oplogFiles = [];
+  if (oplogPath) { oplogFiles = [oplogPath]; }
+  else { try { oplogFiles = readdirSync(CLAUDE_DIR).filter((x) => /^autoloop-log-.*\.md$/.test(x)).sort().map((f) => path.join(CLAUDE_DIR, f)); } catch { oplogFiles = []; } }
+  for (const op of oplogFiles) {
+    const lines = splitL(rd(op));
+    // target schema entries: `## ts · wave · ACTION` then `- field: value` lines
+    for (let i = 0; i < lines.length; i++) {
+      const h = lines[i].match(/^##\s+(.+·.+·.+)$/);
+      if (!h) { if (/^\s*-\s+\d{1,2}:\d/.test(lines[i])) oplogDebt++; continue; } // free-prose `- HH:MM` rows = migration debt
+      const fields = {};
+      for (let j = i + 1; j < lines.length && !/^#{2}\s/.test(lines[j]); j++) {
+        const fm = lines[j].match(/^\s*-\s*(\w+)\s*[:：]\s*(.+)$/);
+        if (fm) fields[fm[1].toLowerCase()] = fm[2].trim();
+      }
+      oplogFindings.push(...validateOplogRow({ title: h[1].trim(), fields }));
     }
-    oplogFindings.push(...validateOplogRow({ title: h[1].trim(), fields }));
   }
 }
 

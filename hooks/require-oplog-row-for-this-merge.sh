@@ -40,9 +40,10 @@ EOF
   fi
   OPLOG_DIR="$PROJ_DIR/.claude"
 fi
-OPLOG=$(ls -t "$OPLOG_DIR"/autoloop-log-*.md 2>/dev/null | head -1 || true)
-{ [ -n "$OPLOG" ] && [ -f "$OPLOG" ]; } || exit 0   # no op-log convention here → no-op (other repos)
-BASE=$(basename "$OPLOG")
+# no-op unless the op-log convention exists here (ANY autoloop-log-*.md present — own or legacy).
+# Under the per-session model the #<N> row may sit in ANY session's ledger, so we grep-ALL below
+# rather than resolving a single mtime-latest file (which would miss a row in a non-latest ledger).
+ls "$OPLOG_DIR"/autoloop-log-*.md >/dev/null 2>&1 || exit 0
 # first integer right after `gh pr merge` = the PR number
 NUM=$(printf '%s' "$CMD" | grep -oE '\bgh[[:space:]]+pr[[:space:]]+merge[[:space:]]+[0-9]+' | grep -oE '[0-9]+$' | head -1 || true)
 # In an op-log project, FORBID an implicit `gh pr merge` (no explicit PR#). Adding a `gh pr view`
@@ -54,9 +55,10 @@ if [ -z "$NUM" ]; then
 EOF
   exit 0
 fi
-# row present? (#NUM not followed by another digit)
-grep -qE "#${NUM}([^0-9]|\$)" "$OPLOG" 2>/dev/null && exit 0
+# row present in ANY session/legacy ledger? (grep-ALL across every autoloop-log-*.md, not a single
+# mtime-latest file — the owning session may have written the row to its own per-session ledger.)
+if grep -lE "#${NUM}([^0-9]|\$)" "$OPLOG_DIR"/autoloop-log-*.md >/dev/null 2>&1; then exit 0; fi
 cat <<EOF
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"HARD GATE (op-log): PR #${NUM} has NO ledger row in ${BASE}. Add a feature·problem·proof row citing #${NUM} to the autoloop op-log FIRST, then re-run the merge. Self-contained (PR# read from the merge command, no gh call) so it CANNOT fail-open — every wave MUST be logged BEFORE it lands."}}
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"HARD GATE (op-log): PR #${NUM} has NO ledger row in any ${OPLOG_DIR}/autoloop-log-*.md. Add a feature·problem·proof row citing #${NUM} to the project's op-log (any session's autoloop-log-*.md) FIRST, then re-run the merge. Self-contained (PR# read from the merge command, no gh call) so it CANNOT fail-open — every wave MUST be logged BEFORE it lands."}}
 EOF
 exit 0
