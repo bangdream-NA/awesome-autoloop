@@ -44,15 +44,35 @@ WARNS=""     # merged systemMessage warns (|-delimited)
 STATE_DIR="${CLAUDE_PLUGIN_DATA:-${TMPDIR:-/tmp}}/aal-state"
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
+# PERF (2026-07-10, R-stop-dispatcher-perf-mirror): run every check CONCURRENTLY. Each check is
+# independent (own throttle/state files), so wall-time collapses from the SUM of all checks to the
+# SLOWEST one. The per-check CONTRACT is unchanged; outputs are read back in REGISTRY ORDER after
+# `wait`, so the merged block/warn text is byte-stable regardless of completion order. Each child
+# writes its stdout/stderr/rc to state files keyed by $$ (the PARENT dispatcher PID — stable inside
+# the subshell, NOT $BASHPID) + the check name, so two concurrent Stop dispatchers (two sessions)
+# never clobber each other, and within one dispatcher each check name is unique.
 for c in "${CHECKS[@]}"; do
   SCRIPT="$HOOKDIR/${c}.sh"
   [ -f "$SCRIPT" ] || continue
-  ERRF="$STATE_DIR/.disp-err.$$.$c"
-  OUT=""; RC=0
-  # ISOLATION: subshell + 2>errfile + `|| RC=$?` — one crashing/non-zero child never aborts the loop.
-  # The child drains the INPUT we feed it (stdin-once); a non-stdin child simply ignores it.
-  OUT=$( printf '%s' "$INPUT" | bash "$SCRIPT" 2>"$ERRF" ) || RC=$?
-  ERR=$(cat "$ERRF" 2>/dev/null || true); rm -f "$ERRF" 2>/dev/null || true
+  (
+    OUTF="$STATE_DIR/.disp-out.$$.$c"; ERRF="$STATE_DIR/.disp-err.$$.$c"; RCF="$STATE_DIR/.disp-rc.$$.$c"
+    RC=0
+    # ISOLATION: one crashing/non-zero child never aborts the others (each runs in its own subshell).
+    # The child drains the INPUT we feed it (stdin-once); a non-stdin child simply ignores it.
+    printf '%s' "$INPUT" | bash "$SCRIPT" >"$OUTF" 2>"$ERRF" || RC=$?
+    printf '%s' "$RC" > "$RCF"
+  ) &
+done
+wait 2>/dev/null || true
+
+for c in "${CHECKS[@]}"; do
+  SCRIPT="$HOOKDIR/${c}.sh"
+  [ -f "$SCRIPT" ] || continue
+  OUTF="$STATE_DIR/.disp-out.$$.$c"; ERRF="$STATE_DIR/.disp-err.$$.$c"; RCF="$STATE_DIR/.disp-rc.$$.$c"
+  OUT=$(cat "$OUTF" 2>/dev/null || true)
+  ERR=$(cat "$ERRF" 2>/dev/null || true)
+  RC=$(cat "$RCF" 2>/dev/null || echo 0)
+  rm -f "$OUTF" "$ERRF" "$RCF" 2>/dev/null || true
 
   if [ "$RC" = "2" ]; then
     # exit-2 block (backlog-drift-check): stderr IS the reason.

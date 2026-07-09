@@ -61,6 +61,10 @@ case "\$MODE" in
   exit2) printf 'EXIT2 reason from %s\n' "\$LABEL" >&2 ; exit 2 ;;
   crash) nonexistent_cmd_xyz_$$ ; printf 'garbage' ; exit 7 ;;
   sid)   SID=\$(printf '%s' "\$INPUT" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{try{process.stdout.write(JSON.parse(d).session_id||"")}catch{}})' 2>/dev/null); printf '{"systemMessage":"SID=%s"}\n' "\$SID" ;;
+  slow)  [ -n "\${AAL_TS_DIR:-}" ] && node -e 'console.log(Date.now())' > "\$AAL_TS_DIR/\$LABEL.start" 2>/dev/null
+         sleep "\${AAL_SLOW_SECS:-1}"
+         [ -n "\${AAL_TS_DIR:-}" ] && node -e 'console.log(Date.now())' > "\$AAL_TS_DIR/\$LABEL.end" 2>/dev/null
+         printf '{"decision":"block","reason":"BLOCK from %s"}\n' "\$LABEL" ;;
   noop)  : ;;
 esac
 exit 0
@@ -155,6 +159,47 @@ OUT=$(run_disp "$D" "$PAYLOAD" STUB_RENDER_FINDING_PLAYWRIGHT_GUARD=block)
 assert_contains     "M-11 render-finding reason surfaces"        "$OUT" 'BLOCK from render-finding-playwright-guard'
 OUT=$(run_disp "$D" "$PAYLOAD")  # all noop → must NOT surface this check
 assert_not_contains "M-11 render-finding silent when noop"       "$OUT" 'render-finding-playwright-guard'
+rm -rf "$D"
+
+echo ""
+echo "--- concurrency + order-stability rows (M-CONC, M-ORDER) — the R-stop-dispatcher-perf-mirror adds ---"
+
+# M-CONC (AC4 — concurrency proof, TIMING-FREE overlap): 3 checks made `slow` (each sleeps
+# AAL_SLOW_SECS then stamps start/end via node Date.now()). Under PARALLEL execution every check
+# STARTS before any check ENDS, so max(start) < min(end). Under the OLD serial loop check-2 starts
+# only after check-1 ends, so max(start) >= min(end) ⇒ this row goes RED. `tail`-terminated pipes
+# (NO head) avoid the pipefail-SIGPIPE class (pipeline §14). node Date.now() (ms), NOT date +%N
+# (unsupported on macOS date). console.log auto-appends a newline so `cat *.start` is one value/line.
+D=$(mktemp -d); build_hookdir "$D"
+TSD=$(mktemp -d)
+OUT=$(run_disp "$D" "$PAYLOAD" AAL_TS_DIR="$TSD" AAL_SLOW_SECS=1 STUB_SESSION_LEARNINGS=slow STUB_CHECK_STALE_AGENTS=slow STUB_PRUNE_TEAM_INBOXES=slow)
+MAXSTART=$(cat "$TSD"/*.start 2>/dev/null | sort -n  | tail -1)
+MINEND=$(cat "$TSD"/*.end     2>/dev/null | sort -rn | tail -1)
+assert_contains "M-CONC all three slow checks surfaced"          "$OUT" 'BLOCK from session-learnings'
+if [ -n "$MAXSTART" ] && [ -n "$MINEND" ] && [ "$MAXSTART" -lt "$MINEND" ]; then
+  ok "M-CONC checks overlapped (max_start < min_end ⇒ ran concurrently)"
+else
+  bad "M-CONC no overlap — max_start=$MAXSTART min_end=$MINEND (a serial dispatcher fails here)"
+fi
+rm -rf "$D" "$TSD"
+
+# M-ORDER (AC5 — registry-ORDER aggregation, NOT completion order): an EARLY-registry check
+# (session-learnings, index 0) is `slow`; a LATE-registry check (render-finding-playwright-guard,
+# index 10) blocks immediately. The late check FINISHES first, but the merged reason must still
+# order the early check's text BEFORE the late one's (read-back is registry-ordered). On a
+# completion-order regression the late-fast text would lead ⇒ this row goes RED. Prefix-length
+# compare: PRE_E (text before the early check) must be SHORTER than PRE_L (text before the late one).
+D=$(mktemp -d); build_hookdir "$D"
+OUT=$(run_disp "$D" "$PAYLOAD" AAL_SLOW_SECS=1 STUB_SESSION_LEARNINGS=slow STUB_RENDER_FINDING_PLAYWRIGHT_GUARD=block)
+assert_contains "M-ORDER early(session-learnings) text present"  "$OUT" 'BLOCK from session-learnings'
+assert_contains "M-ORDER late(render-finding) text present"      "$OUT" 'BLOCK from render-finding-playwright-guard'
+PRE_E="${OUT%%BLOCK from session-learnings*}"
+PRE_L="${OUT%%BLOCK from render-finding-playwright-guard*}"
+if [ "${#PRE_E}" -lt "${#PRE_L}" ]; then
+  ok "M-ORDER early check precedes late check (registry order, not completion order)"
+else
+  bad "M-ORDER completion-order leak — early prefix ${#PRE_E} not < late prefix ${#PRE_L}"
+fi
 rm -rf "$D"
 
 echo ""
