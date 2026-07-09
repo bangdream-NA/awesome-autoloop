@@ -69,6 +69,13 @@ footgun-preventer must not block a legitimate commit when node is absent).
 > `self-improve` applies this test when mining and PROPOSES re-routing any mis-filed work-item out of the log
 > onto a card.
 
+> **`.gate-denials` — the structured denial ledger.** Three deny gates (`block-bare-agent`,
+> `enforce-planner-first`, `validate-agent-type`) append ONE pipe-delimited line per deny —
+> `<ISO-timestamp> | <hook> | <pattern-id> | <short-reason>` — to `<project>/.claude/.gate-denials`
+> (falls back to `~/.claude/.gate-denials`; rotates to `.gate-denials.1` at ~240KB). It is the
+> machine-readable tail `/self-improve` mines to surface a footgun that recurs ≥3× as a COUNT, not an
+> anecdote. Read it directly when a gate keeps biting and you want the pattern, not the story.
+
 ### merge-gates — gates `git push` / `gh pr merge` on a green, reviewed PR (fail-closed)
 
 | When you see | It means | Do this |

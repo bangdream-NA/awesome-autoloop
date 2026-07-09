@@ -24,14 +24,28 @@ STOP_ACTIVE=$(json_get "$INPUT" stop_hook_active)
 
 # --- No-op unless THIS project uses the autoloop op-log convention. Resolve ONE project. ---
 PROJ="$(aal_resolve_project_dir)"
-OPLOG=$(ls -t "$PROJ"/.claude/autoloop-log-*.md 2>/dev/null | head -1 || true)
+# Active op-log = the autoloop-log-*.md in $PROJ/.claude whose FILENAME DATE-DIGITS are maximal,
+# excluding any *archive* file. NOT mtime: a session still APPENDING to the old >250KB ledger bumps
+# its mtime, so `ls -t | head -1` kept re-selecting the OLD oversized file as active and minted a
+# fresh 162-byte stub on EVERY Stop turn. Filename date-digits are append-proof + monotonic: all
+# names share the zero-padded YYYY-MM-DD[-HHMMSS] prefix, so a plain string compare orders them —
+# different dates diverge inside the fixed-width date ("20260709" < "20260710123456"); a same-day
+# timestamped successor beats the bare date ("20260709" < "20260709120000", shorter prefix sorts
+# first); same-day timestamps compare numerically. ("20260709" > "20260708235855" > "20260708".)
+OPLOG=""; OPLOG_KEY=""
+for f in "$PROJ"/.claude/autoloop-log-*.md; do
+  [ -f "$f" ] || continue
+  case "$(basename "$f")" in (*archive*) continue ;; esac
+  key=$(basename "$f" | tr -cd '0-9')
+  if [ -z "$OPLOG" ] || [ "$key" \> "$OPLOG_KEY" ]; then OPLOG="$f"; OPLOG_KEY="$key"; fi
+done
 [ -n "$OPLOG" ] || exit 0
 
 # --- Auto-rotate: keep the active op-log under the 256KB Read-tool ceiling. When it crosses ~250KB,
 #     start a fresh dated copy IN THE PROJECT DIR so it is always Read-able; the just-frozen file
-#     stays put (<256KB) as history. The new file has the newest mtime so the gate hooks resolve it
-#     as the project's LATEST automatically. Only the NEWEST (active) file is considered — frozen
-#     historical files >250KB must never re-trigger rotation. ---
+#     stays put (<256KB) as history. The successor's FILENAME date-digits are the largest, so the
+#     next turn's resolution (above) picks it as the project's LATEST automatically. Only the resolved
+#     active file is size-checked — frozen historical / *archive* files never re-trigger rotation. ---
 if [ -f "$OPLOG" ]; then
   LOG_BYTES=$(wc -c < "$OPLOG" 2>/dev/null | tr -d ' ')
   case "$LOG_BYTES" in (*[!0-9]*|'') LOG_BYTES=0 ;; esac
