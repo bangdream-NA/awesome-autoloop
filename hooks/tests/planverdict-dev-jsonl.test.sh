@@ -58,7 +58,7 @@ echo "== developer gate jsonl-first matrix (BLOCKER-1) =="
 # ---- Build the monolith-only-REVERTED premise-target.mjs: awk-delete the jsonl-first block (the
 #      `if (jsonlPath) { ... }` span) so it falls straight to the monolith presence-check = the
 #      pre-fix behavior that DEADLOCKS a jsonl-only wave. ----
-REVERTED=$(mktemp --suffix=.mjs 2>/dev/null || mktemp)
+REVDIR=$(mktemp -d); REVERTED="$REVDIR/reverted.mjs"
 awk '
   /^  if \(jsonlPath\) \{$/ { skip=1; next }
   skip && /^  \}$/          { skip=0; next }
@@ -86,6 +86,6 @@ DRC=$(mktemp -d); build_hookdir "$DRC" "$REVERTED"; PRC="$DRC/proj"; mkproj "$PR
 OUT=$(run_dev "$DRC" "$PRC")
 assert_contains "(c) RED reverted hook DEADLOCKS a jsonl-only APPROVED wave → DENY (matrix inverts vs (a))" "$OUT" '"permissionDecision":"deny"'
 
-rm -rf "$DGA" "$DGB" "$DRC"; rm -f "$REVERTED"
+rm -rf "$DGA" "$DGB" "$DRC" "$REVDIR"
 echo ""; echo "RESULT: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

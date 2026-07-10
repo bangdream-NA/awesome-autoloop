@@ -89,7 +89,7 @@ run_board_gate() {
   local d="$1"; local cmd="$2"; shift 2
   local payload
   payload=$(CMD="$cmd" node -e 'process.stdout.write(JSON.stringify({tool_name:"Bash",command:process.env.CMD}))')
-  printf '%s' "$payload" | env "$@" PATH="$d/bin:$PATH" bash "$d/require-backlog-reconciled-before-merge.sh"
+  printf '%s' "$payload" | env CLAUDE_PROJECT_DIR="$AAL_AMBIENT" "$@" PATH="$d/bin:$PATH" bash "$d/require-backlog-reconciled-before-merge.sh"
 }
 
 echo "== R-13 gate-resolution matrix =="
@@ -122,6 +122,15 @@ ROOT=$(mktemp -d)
 build_project "$ROOT/projA" "AAL-FIXTURE-PROJA-BOARD"
 build_project "$ROOT/projB" "AAL-FIXTURE-PROJB-BOARD"
 HD=$(mktemp -d); build_hookdir "$HD"
+# Ambient autoloop marker (hosted-hermeticity): the board gate's activation guard
+# (aal_is_autoloop_project, called with NO arg at require-backlog-reconciled-before-merge.sh:17)
+# keys on the RESOLVED ambient project (CLAUDE_PROJECT_DIR -> git-common-dir -> cwd), NOT the
+# cd-extracted board target. A clean CI checkout has no committed .claude/ (gitignored), so the
+# guard no-ops and every gate row returns empty. Inject a dedicated autoloop-marked ambient dir and
+# point CLAUDE_PROJECT_DIR at it in run_board_gate (placed BEFORE "$@" so G-12's explicit
+# per-row CLAUDE_PROJECT_DIR override still last-wins). Board TARGET is unaffected (extracted from
+# the command via aal_extract_cd_target, which has NO env fallback).
+AAL_AMBIENT=$(mktemp -d); mkdir -p "$AAL_AMBIENT/.claude"; : > "$AAL_AMBIENT/.claude/.autoloop"
 BOTH_SLUGS=$(printf 'AAL-FIXTURE-PROJA-BOARD\nAAL-FIXTURE-PROJB-BOARD')
 
 echo "--- G-2..G-10 Class-A board gate (require-backlog-reconciled) ---"
@@ -246,7 +255,7 @@ assert_contains "G-12 RED: old gate multi-cd -> resolves A (the bug)" "$OUT_OLD2
 echo "    (GREEN side proven by G-2 + G-7 above against the real gate)"
 echo ""
 
-rm -rf "$ROOT" "$HD" "$HD_OLD"
+rm -rf "$ROOT" "$HD" "$HD_OLD" "$AAL_AMBIENT"
 
 echo ""
 echo "== RESULT: $PASS passed, $FAIL failed =="
