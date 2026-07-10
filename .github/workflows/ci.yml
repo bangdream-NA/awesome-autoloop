@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: the suite is pure local script execution -- it needs no write scope
+# and no secrets, so a fork PR runs identically (AC-4).
+permissions:
+  contents: read
+
+# Rapid successive pushes to the same ref cancel the older in-progress run (AC-9).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  suite:
+    name: hook suite (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # Job-level wall backstop (AC-7). Anchored on the worst-case per-JOB sum, not run-all.sh's
+    # per-test 300s cap. Observed local MSYS run-all.sh wall ~5.6 min (spawn-heavy); the full
+    # three-piece suite on the slowest host lands well under this with generous CI headroom.
+    timeout-minutes: 20
+    strategy:
+      # Don't cancel sibling OS legs when one fails -- a portability regression should show
+      # WHICH platform broke, not mask the rest.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      # macOS only (AC-6). Prepend a shim so a bare `bash` resolves to stock /bin/bash 3.2.57
+      # ahead of any Homebrew bash 5. run-all.sh invokes each test via bare `bash "$t"`, so
+      # controlling PATH makes BOTH the aggregator AND every inner test interpreter 3.2 -- the
+      # version proof below then binds to the interpreter that actually runs the tests, not a
+      # top-level echo. Keyed on matrix.os (not the host-context alias) to keep the leak-scan clean.
+      - name: Force stock bash 3.2 onto PATH (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          mkdir -p /tmp/aal-bash32
+          ln -sf /bin/bash /tmp/aal-bash32/bash
+          echo /tmp/aal-bash32 >> "$GITHUB_PATH"
+
+      - name: Prove bash 3.2 at the test-execution layer (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          echo "bash resolves to: $(command -v bash)"
+          echo "outer shell \$BASH_VERSION=$BASH_VERSION"
+          inner=$(bash -c 'printf %s "$BASH_VERSION"')
+          echo "inner bare-bash \$BASH_VERSION=$inner  (== run-all.sh's 'bash \"\$t\"' resolution)"
+          case "$inner" in
+            3.2.*) echo "AC-6 OK: test-execution interpreter is bash $inner" ;;
+            *) echo "AC-6 FAIL: expected bash 3.2.x, got '$inner'"; exit 1 ;;
+          esac
+
+      - name: Hook fixture suite (run-all.sh)
+        run: bash hooks/tests/run-all.sh
+
+      - name: Installer smoke (first-run-test.sh)
+        run: bash bin/first-run-test.sh
+
+      # The scanner adds the runtime OS user as a forbidden pattern to catch the AUTHOR's real
+      # name leaking into shipped files. In CI the OS user is a generic English word that also
+      # occurs benignly across the tree, so blank it for this step: the STATIC pattern set is the
+      # real identity gate, and the author's name is never present in CI anyway.
+      - name: Leak scanner (sanitize-check.sh)
+        env:
+          USER: ""
+          USERNAME: ""
+        run: bash bin/sanitize-check.sh

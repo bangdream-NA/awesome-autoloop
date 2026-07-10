@@ -12,7 +12,7 @@ cd "$ROOT" || exit 2
 
 # Scope: exactly these paths (the artifact that flips public). EXCLUDES docs/** (the specs
 # legitimately name what they scrub and never ship public).
-SCAN_PATHS=".claude-plugin hooks agents skills templates examples bin README.md LICENSE"
+SCAN_PATHS=".claude-plugin .github hooks agents skills templates examples bin README.md LICENSE"
 
 # The OS username is resolved at runtime (never hardcoded here, so the doc carries no identity).
 OS_USER="${USERNAME:-${USER:-}}"

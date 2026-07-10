@@ -6,7 +6,8 @@
 
 It blocks some of your actions *on purpose* — and documents every single one.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/suhang56/awesome-autoloop/actions/workflows/ci.yml/badge.svg)](https://github.com/suhang56/awesome-autoloop/actions/workflows/ci.yml)
+&nbsp;·&nbsp; [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 &nbsp;·&nbsp; version 1.0.0
 &nbsp;·&nbsp; for Claude Code (Agent Teams)
 
