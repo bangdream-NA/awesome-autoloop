@@ -63,6 +63,37 @@ try {
   const newc = chunks.join('\n');
   if (!newc) process.exit(0);
 
+  // (A0) CARD-HEADER DEMOTE antipattern: an Edit whose old_string is a `### [STATUS]` card header
+  // AND whose new_string STRIPS the `### ` prefix (demoting it to a plain line) while keeping the
+  // card body/badge silently UNREGISTERS the card — every `^### `-keyed check (and
+  // block-backlog-archive-residue) goes blind to the header-less orphan. Fires on the ACTIVE board
+  // only, BEFORE the `### `-header extraction below (a demoted card has NO `### ` header in
+  // new_string, so it would slip past the headers.length===0 early-exit).
+  if (isActive) {
+    const pairs = [];
+    if (ti.old_string !== undefined && ti.new_string !== undefined) pairs.push({ old: String(ti.old_string), nu: String(ti.new_string) });
+    if (Array.isArray(ti.edits)) for (const e of ti.edits) if (e && e.old_string !== undefined && e.new_string !== undefined) pairs.push({ old: String(e.old_string), nu: String(e.new_string) });
+    for (const { old, nu } of pairs) {
+      const oldFirst = (old.split('\n')[0] || '').trim();
+      const newFirst = (nu.split('\n')[0] || '').trim();
+      if (!/^###\s+\[[A-Z-]+\]/.test(oldFirst)) continue;               // old wasn't a card header
+      if (/^###\s/.test(newFirst)) continue;                            // new keeps SOME `### ` header
+      if (!nu.trim()) continue;                                         // pure delete → fine
+      const keepsBody = /(?:^|\n)\s*-\s*(?:aliases|problem|fix|log):/.test(nu);   // English kit board uses ASCII ':'
+      const looksLikeBadge = /^(?:\s*[✅❌🚫]|\s*MERGED\s+#|\s*DONE\b|\s*ARCHIVED\b|\s*PHANTOM\b)/i.test(newFirst);
+      if (!(keepsBody || looksLikeBadge)) continue;
+      process.stdout.write(JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'deny',
+          permissionDecisionReason:
+            `card-header DEMOTE antipattern: the Edit strips the \`### [STATUS]\` header off card "${oldFirst.slice(0, 60)}…" and replaces it with a non-\`### \` line ("${newFirst.slice(0, 60)}…") while keeping the card body/badge. That silently unregisters the card — the header-extraction checks (and block-backlog-archive-residue) all key on \`### \` headers and go BLIND to a header-less orphan. Correct archive flow: CUT the ENTIRE card block (header + body) OUT of the active board, then INSERT it INTO the archive ledger with a proper \`### [DONE] <slug> — PR #<N> MERGED @<sha>\` header + the full log tail. If pruning a phantom, do the same with a PHANTOM/exception note.`,
+        },
+      }));
+      process.exit(0);
+    }
+  }
+
   // ANY `### ` card header in the new content.
   const headers = newc.split('\n').filter((l) => /^###\s+\S/.test(l));
   if (headers.length === 0) process.exit(0);
@@ -92,7 +123,20 @@ try {
     // convention: `### ✅ <name> · … — <verdict>` carries the verdict inline), NOT the whole block —
     // a historical "DoD pending(LEAD)" step in a card's log body must not override a header that now
     // reads DoD-VERIFIED.
-    const bad = headers.filter((h) => {
+    // ANCHOR-EXCLUSION (rule-8: judge the ACTION, not incidental payload text): an Edit that INSERTS a
+    // new card uses a neighbouring PRE-EXISTING card's header line as its old_string/new_string
+    // positioning anchor. That anchor header is NOT a card archived by THIS edit, but it appears in
+    // new_string -- and if the anchor TRUNCATED the header (dropping its "ARCHIVED / DoD-VERIFIED" tail)
+    // this gate would misread it as a brand-new DoD-less card and deny the whole write, naming the WRONG
+    // card. A header line that ALSO appears byte-identically in old_string is a positioning anchor ->
+    // exclude it. A genuinely-new archived card can never be in old_string, so the gate's teeth are
+    // unchanged for real archives.
+    const anchorHeaders = new Set();
+    const collectOld = (s) => String(s).split('\n').forEach((l) => { if (/^###\s+\S/.test(l)) anchorHeaders.add(l.trim()); });
+    if (ti.old_string !== undefined) collectOld(ti.old_string);
+    if (Array.isArray(ti.edits)) for (const e of ti.edits) if (e && e.old_string !== undefined) collectOld(e.old_string);
+    const newHeaders = headers.filter((h) => !anchorHeaders.has(h.trim()));
+    const bad = newHeaders.filter((h) => {
       if (NO_DOD_NEEDED.some((re) => re.test(h))) return false; // WONTFIX/FAKE/STALE/PHANTOM/… or no-DoD → exempt
       if (DOD_PENDING.some((re) => re.test(h))) return true;    // header says pending → not done (override)
       return !DOD_VERIFIED.some((re) => re.test(h));            // verified→ok; neither verified nor exempt→the HOLE→deny

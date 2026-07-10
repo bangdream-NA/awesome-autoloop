@@ -303,7 +303,14 @@ if (argMode === 'pre-review') {
   if (/\b(local-only|no PR yet)\b|\bPR\s*TBD\b|#TBD/i.test(prompt)) deny(`reviewer dispatch brief says local-only / PR-TBD — Mode B reviews an OPEN PR; push + open the PR first.`);
 
   const cardDelivered = /·\s*DEV_DELIVERED\s*·/.test(card.block) || (/\b(delivered|pushed)\b/i.test(card.block) && sha.test(card.block));
-  const cardPR = /·\s*PR_OPENED\s*·/.test(card.block) || /\bMERGED\s*#\d{1,6}\b/i.test(card.block) || /\bPR[^\n]*#\d{1,6}\b/i.test(card.block);
+  // cardPR: the card ASSERTS its own PR is open/merged. Anchor to the canonical transition markers
+  // (`· PR_OPENED ·`, `MERGED #N`) OR a delivery arrow immediately targeting the PR (`→ PR #N`,
+  // `→ **PR #N`, `→ DRAFT PR #N`). The old free-text `/\bPR[^\n]*#\d{1,6}\b/i` matched ANY prose
+  // mentioning a PR number ("fixes the regression from PR #500") → false-allowed a premature Mode-B
+  // reviewer (§8-(a) whole-text-vs-anchor). Arrow-immediate keeps the real `pushed → PR #N` cards.
+  const cardPR = /·\s*PR_OPENED\s*·/.test(card.block)
+    || /\bMERGED\s*#\d{1,6}\b/i.test(card.block)
+    || /(?:→|->)\s*(?:\*\*)?(?:DRAFT\s+)?PR\s*#\d{1,6}\b/i.test(card.block);
   const path1 = cardDelivered && cardPR;
 
   const prM = prompt.match(/pull\/(\d{1,6})\b|(?:\bPR\s*#?|#)(\d{1,6})\b/i);
