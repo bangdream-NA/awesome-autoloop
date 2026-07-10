@@ -46,8 +46,13 @@ PATTERNS=(
   '@gmail\.com'
   '<REDACTED>'
 )
-# Add the OS username as a pattern only if it is set and not a generic word.
-if [ -n "$OS_USER" ] && [ "${#OS_USER}" -ge 3 ]; then
+# Add the OS username as a forbidden pattern only OUTSIDE CI, and only if set and >=3 chars.
+# In CI the OS login is a generic service account (GitHub Actions: `runner` on ubuntu/macOS,
+# `runneradmin` on windows) that also occurs benignly across the tree -> augmenting there is a false
+# positive. The augment guards ONLY the local runner's OWN OS identity (a third party's name in file
+# content is the static PATTERNS set's job), and in CI that identity is definitionally the service
+# account, not the author -> skipping regresses nothing. `${CI:-}` fires on GitHub's default CI=true.
+if [ -z "${CI:-}" ] && [ -n "$OS_USER" ] && [ "${#OS_USER}" -ge 3 ]; then
   PATTERNS+=("$(printf '%s' "$OS_USER" | sed 's/[].[^$*\/]/\\&/g')")
 fi
 

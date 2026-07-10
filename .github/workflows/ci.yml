@@ -66,12 +66,11 @@ jobs:
       - name: Installer smoke (first-run-test.sh)
         run: bash bin/first-run-test.sh
 
-      # The scanner adds the runtime OS user as a forbidden pattern to catch the AUTHOR's real
-      # name leaking into shipped files. In CI the OS user is a generic English word that also
-      # occurs benignly across the tree, so blank it for this step: the STATIC pattern set is the
-      # real identity gate, and the author's name is never present in CI anyway.
+      # The scanner adds the runtime OS user as a forbidden pattern to catch the AUTHOR's real name
+      # leaking into a shipped file. It now SKIPS that augmentation in CI at the source (it reads the
+      # CI env var — sanitize-check.sh:55), because the hosted OS login is a generic service account
+      # (`runner` / `runneradmin`) that occurs benignly across the tree. So the real runner env flows
+      # straight through here with NO masking — the source guard, not a workflow-layer blank, is what
+      # keeps the generic login from false-positiving. The static PATTERNS set is the real identity gate.
       - name: Leak scanner (sanitize-check.sh)
-        env:
-          USER: ""
-          USERNAME: ""
         run: bash bin/sanitize-check.sh
