@@ -50,7 +50,14 @@
         "hooks": [
           { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-backlog-status-drift.sh"], "timeout": 5 },
           { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-malformed-new-backlog-card.sh"], "timeout": 10 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-lead-editing-source.sh"], "timeout": 5 }
+          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-lead-editing-source.sh"], "timeout": 5 },
+          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-spec-doc-in-main-checkout.sh"], "timeout": 5 }
+        ]
+      },
+      {
+        "matcher": "Workflow",
+        "hooks": [
+          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-audit-workflow-while-board-open.sh"], "timeout": 10 }
         ]
       }
     ],
@@ -69,6 +76,12 @@
         "hooks": [
           { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/remind-dispatch-reviewer-after-dev.sh"], "timeout": 5 },
           { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/prune-team-inboxes.sh"], "timeout": 10 }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-backlog-archive-residue.sh"], "timeout": 10 }
         ]
       }
     ],
