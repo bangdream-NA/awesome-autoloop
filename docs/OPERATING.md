@@ -115,7 +115,7 @@ legitimate merge it can't evaluate.
 
 | When you see | It means | Do this |
 |---|---|---|
-| ledger-size warning | a session ledger nears the 256KB Read-tool ceiling | split it at line boundaries into `<name>-archive-NN.md` parts |
+| ledger-size warning | a session ledger nears the 256KB Read-tool ceiling | split it at line boundaries into `<name>-archive-NN.md` parts — or run `node hooks/rotate-ledger.mjs <ledger.md> --apply` to split a `## `-headed ledger by recency automatically (dry-run without `--apply`; archives to a fresh slot, never clobbers; markdown `## `-sections only — the `index.jsonl` store is split by hand) |
 | worktree-count warning | worktrees under `AAL_WORKTREE_ROOT` exceed the cap | prune merged worktrees |
 | Bash denied: truncating write to a ledger/archive | you ran `>` / `Out-File` / `Set-Content` onto an EXISTING `*-archive*.md` / ledger (`BACKLOG`/`plan-reviews`/`code-reviews`/`struggle-log`/`autoloop-log`) — `>` clears the file, losing its content | APPEND with `>>` (or use the Edit/Write tool — allowed), or to split write a `.tmp` then `mv` it to the next FREE `-archive-NN` slot. This gate fails OPEN (a footgun-preventer): node-absent or any uncertainty → it allows |
 
