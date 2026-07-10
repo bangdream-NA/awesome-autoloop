@@ -63,7 +63,12 @@ seed() {  # <projdir>
   local c="$1/.claude"
   printf '## 2026-07-09 · wave-a · MERGE\n- proof: merged PR #5\n- next: DoD\n' > "$c/autoloop-log-2026-07-09-aaaaaaaa.md"
   printf '## 2026-07-10 · wave-b · DISPATCH\n- proof: dispatched PR #7\n- next: review\n' > "$c/autoloop-log-2026-07-10-bbbbbbbb.md"
-  touch "$c/autoloop-log-2026-07-10-bbbbbbbb.md"   # make the NON-#5 file mtime-newest
+  # Make the NON-#5 file mtime-newest DETERMINISTICALLY: a bare `touch` (mtime=now) can land in
+  # the SAME kernel coarse-clock tick (~4ms jiffy on Linux) as the printf writes above → equal
+  # mtimes → `ls -t` tie-breaks by NAME (07-09 sorts first) → GUARD 3 halts. Seen near-
+  # deterministically on ubuntu-latest runners (fast forks); an explicit far-future POSIX -t
+  # stamp is granularity-independent and portable (GNU/BSD/MSYS, bash 3.2).
+  touch -t 203001010000 "$c/autoloop-log-2026-07-10-bbbbbbbb.md"
 }
 
 DG=$(mktemp -d); build_hookdir "$DG"; PG="$DG/proj"; make_proj "$PG"; seed "$PG"
