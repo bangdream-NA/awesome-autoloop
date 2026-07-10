@@ -81,7 +81,7 @@ footgun-preventer must not block a legitimate commit when node is absent).
 > dirs under `~/.claude/teams/` that are untouched for >2 days (a `config.json` + mtime >2d). If you
 > keep long-lived team dirs there, be aware of the prune.
 
-> **Learning-loop routing.** Two destinations, one test: 「伤到我的执行了?」→ struggle-log；「是要去修/建的东西?」→ BACKLOG card.
+> **Learning-loop routing.** Two destinations, one test: "did it hurt MY execution?" → struggle-log; "is it a thing to fix/build?" → BACKLOG card.
 > The struggle-log is execution friction the agent hit; a discovered bug / improvement is a board work-item.
 > `self-improve` applies this test when mining and PROPOSES re-routing any mis-filed work-item out of the log
 > onto a card.
