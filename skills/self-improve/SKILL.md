@@ -19,7 +19,7 @@ rules, hooks, memory, or CLAUDE.md.
    the log may not have captured yet. If the log is empty or absent, say so and stop.
 
    **Routing test (apply while mining the log):** the struggle-log records ONLY execution friction the
-   agent ITSELF hit — 「伤到我的执行了?」→ struggle-log；「是要去修/建的东西?」→ BACKLOG card. A DISCOVERED bug
+   agent ITSELF hit — "did it hurt MY execution?" → struggle-log; "is it a thing to fix/build?" → BACKLOG card. A DISCOVERED bug
    or improvement idea (even one found while diagnosing another symptom) is a WORK ITEM for the board, not a
    log row. When you find a mis-filed work-item in the log, PROPOSE re-routing it onto a BACKLOG card
    (propose-never-apply) — do not silently move it.
