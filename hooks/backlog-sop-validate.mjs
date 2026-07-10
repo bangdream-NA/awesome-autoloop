@@ -29,6 +29,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { jsonlPlanVerdict } from './lib/plan-verdict.mjs';
+import { stripHtmlComments } from './lib/strip-html-comments.mjs';
 
 const argMode = (() => { const i = process.argv.indexOf('--mode'); if (i >= 0) return process.argv[i + 1]; const f = process.argv.find((a) => a.startsWith('--mode=')); return f ? f.split('=')[1] : 'report'; })();
 // Default board for --mode report (a manual CLI run with no dispatch prompt). The dispatch gates
@@ -138,7 +139,7 @@ if (ghOk) try {
 // ---- parse active cards into blocks ----
 const parseCards = (boardFile) => {
   const out = [];
-  const lines = splitL(rd(boardFile));
+  const lines = splitL(stripHtmlComments(rd(boardFile)));   // strip <!-- … --> first so a commented example card is not counted (AC9)
   for (let i = 0; i < lines.length; i++) {
     const m = lines[i].match(/^###\s+\[([^\]]+)\]\s+(.+)$/);
     if (!m) continue;
@@ -187,11 +188,25 @@ if (argMode === 'pre-dispatch') {
   const pipelineRoles = ['planner', 'architect', 'developer', 'uiux-designer', 'designer', 'plan-reviewer', 'code-reviewer'];
   if (!pipelineRoles.includes(role) && !looksPipeline) process.exit(0);   // research/ad-hoc → no-op
   rerouteBoard(prompt);                                                    // per-project board (SOP §4)
-  if (rd(BACKLOG) === null || cards.length === 0) process.exit(0);          // no readable board → no-op
+  if (rd(BACKLOG) === null) process.exit(0);                                // no board CONVENTION (foreign repo) → no-op
   // code-reviewer belongs to pre-review (later), not here
   if (role === 'code-reviewer' || /^(code-?reviewer|reviewer)/i.test(name)) process.exit(0);
 
   const deny = (reason) => { process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: `BACKLOG SOP pre-dispatch: ${reason}` } })); process.exit(0); };
+
+  // A readable board with ZERO active cards is NOT a foreign repo (that is the rd===null no-op above)
+  // — it is an autoloop board archived to zero, i.e. the first-card-of-a-fresh-cycle moment where
+  // register-before-dispatch matters MOST (a planner dispatched card-less right after archive-to-zero).
+  // The old guard folded this into the missing-file no-op and silently ALLOWED it; now it fail-CLOSES
+  // for pipeline roles. Fresh-install first-contact surface — the deny must TEACH register-first (AC3).
+  if (cards.length === 0) deny(`the board at ${BACKLOG} is readable but has ZERO active cards — this dispatch's wave is unregistered. Register the wave's card under the board's "## ACTIVE" section BEFORE dispatching any pipeline role, e.g.:
+### [QUEUED] <wave-name> · <P>
+- aliases: <short-slug>
+- problem: <what's wrong / verify the premise LIVE first>
+- fix: <the planned fix + acceptance criteria>
+- log:
+  - <date> · REGISTERED · <who> · proof=<first-hand evidence> · next=<next action>
+[STATUS] ∈ {QUEUED,IN-DEV,REVIEW,BLOCKED,USER-GATED}.`);
 
   // identify the TARGET wave: R-/wave- slugs from name+prompt in PRIORITY order (anchor/first-slug
   // before sibling waves cited later), match a card by the FIRST candidate that resolves one.
@@ -237,8 +252,20 @@ if (argMode === 'pre-review') {
   const isCodeRev = !isPlanRev && (role === 'code-reviewer' || /^(code-?reviewer|reviewer)[-_a-z0-9]*$/i.test(name));
   if (!isPlanRev && !isCodeRev) process.exit(0);                    // non-reviewer → no-op
   rerouteBoard(prompt);                                             // per-project board (SOP §4)
-  if (rd(BACKLOG) === null || cards.length === 0) process.exit(0);  // no readable board → no-op
+  if (rd(BACKLOG) === null) process.exit(0);                        // no board CONVENTION (foreign repo) → no-op
   const deny = (reason) => { process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: `BACKLOG SOP pre-review: ${reason}` } })); process.exit(0); };
+
+  // Same empty-board split as pre-dispatch: a readable board with ZERO active cards means the reviewed
+  // wave is unregistered → there is no card to gate the review against → deny with register/restore
+  // guidance (fires BEFORE the wrong-reviewer-type + PR checks; emptiness is the more fundamental block).
+  if (cards.length === 0) deny(`the board at ${BACKLOG} is readable but has ZERO active cards — the reviewed wave is unregistered. Register/restore the wave's card under the board's "## ACTIVE" section BEFORE dispatching a reviewer, e.g.:
+### [QUEUED] <wave-name> · <P>
+- aliases: <short-slug>
+- problem: <what's wrong / verify the premise LIVE first>
+- fix: <the planned fix + acceptance criteria>
+- log:
+  - <date> · REGISTERED · <who> · proof=<first-hand evidence> · next=<next action>
+[STATUS] ∈ {QUEUED,IN-DEV,REVIEW,BLOCKED,USER-GATED}.`);
 
   // wrong reviewer TYPE for the brief's mode (explicit-signal only; aligns with
   // block-codereviewer-for-plan-review.sh + block-non-codereviewer-mode-b.sh)
