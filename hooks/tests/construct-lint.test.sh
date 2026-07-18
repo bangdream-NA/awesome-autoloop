@@ -11,7 +11,9 @@ FILES="$HOOKS_SRC/stop-dispatcher.sh $HOOKS_SRC/prune-team-inboxes.sh $HERE/run-
 echo "== AC8a construct-lint (0 bash-4+-only constructs) =="
 for f in $FILES; do [ -f "$f" ] || bad "missing scan target: $f"; done
 lint() { # <label> <ERE>
-  local hits; hits=$(grep -REn "$2" $FILES 2>/dev/null || true)
+  local hits
+  # shellcheck disable=SC2086  # $FILES is an intentional space-separated scan list (multi-arg to grep)
+  hits=$(grep -REn "$2" $FILES 2>/dev/null || true)
   if [ -z "$hits" ]; then ok "no $1"; else bad "$1 FOUND: $hits"; fi
 }
 lint "wait -n"           'wait[[:space:]]+-n'

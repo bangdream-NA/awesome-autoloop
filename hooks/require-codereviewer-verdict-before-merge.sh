@@ -49,7 +49,7 @@ esac
 # Per-verdict file reviews/pr<N>-r<round>.md (LATEST round) → monolith legacy. Q6: the attestation is
 # a `.md`-line concept (symmetric with the code-reviewer's per-verdict write); require-pr-green owns
 # the jsonl verdict+HEAD-SHA bind, so this gate reads the per-verdict `.md`, not jsonl.
-PV=$(ls "$PROJECT_DIR"/.claude/reviews/pr${PR_NUM}-r*.md 2>/dev/null | sort -V | tail -1 || true)
+PV=$(ls "$PROJECT_DIR/.claude/reviews/pr${PR_NUM}-r"*.md 2>/dev/null | sort -V | tail -1 || true)
 if [ -n "$PV" ] && [ -f "$PV" ]; then
   LATEST_BLOCK=$(cat "$PV")
 else

@@ -207,6 +207,13 @@ All five are ON by default. To change groups after install, edit `AAL_GATES` (co
 - Local state lives under your project `.claude/` and is gitignored: the deny-event log (`.claude/.gate-denials`, rotated past 240KB) and the self-improve cadence marker (`.claude/.aal-state/self-improve-last-run`, a single un-keyed epoch-seconds int so the >24h nudge survives a session rotation). `loop-detection` logs to `${CLAUDE_PLUGIN_DATA}` (falling back to `${XDG_STATE_HOME:-$HOME/.local/state}`).
 </details>
 
+## 🧪 CI
+
+The [`ci.yml`](.github/workflows/ci.yml) workflow (the badge above) runs two parallel jobs on every push/PR:
+
+- **`suite`** — the behavioral hook-fixture suite + installer/leak smoke across ubuntu / macOS / windows.
+- **`lint`** — static analysis (ubuntu-only): [`shellcheck`](https://www.shellcheck.net) `--shell=bash` over every tracked `.sh` (policy in the repo-root [`.shellcheckrc`](.shellcheckrc) — correctness codes armed, pure-style noise disabled), plus [`actionlint`](https://github.com/rhysd/actionlint) validating the workflow YAML. actionlint is installed from a version-pinned release verified against its published SHA256 (fail-closed), and `actions/checkout` is pinned to a full commit SHA.
+
 ## 🔧 Adapting & living with the gates
 
 **Write your own gate.** The project-specific gates the framework uses (board-as-truth validators, prod-topology gates, server-op runbook gates) are NOT mounted — they hardcode a board format, prod host, or worktree layout that isn't generic. Representative ones ship as documented examples under [`examples/`](examples/) with project literals replaced by placeholders, plus a README on how to adapt one. Copy an example into your own `~/.claude/hooks/`, fill the placeholders, and wire it in `settings.json`.

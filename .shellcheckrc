@@ -1,0 +1,13 @@
+# .shellcheckrc — repo-root policy for the CI shellcheck gate (R-shellcheck-gate).
+# ARM correctness codes (SC2086/SC2155/SC2034/SC2043/SC2295 stay ENABLED = the gate's teeth).
+# Only pure-style / noise codes are disabled below, each with its reason. Adding a
+# correctness code here removes a tooth — do not, without lead sign-off.
+disable=SC1091  # source-not-followed: artifact of not passing -x; sources resolve at runtime
+disable=SC2015  # A && B || C: intentional short-circuit idiom used throughout the gates
+disable=SC2012  # ls-vs-find: ls is deliberate for these simple, controlled globs
+disable=SC2016  # no-expand-in-single-quotes: intentional literal $ in awk/sed programs
+disable=SC2019  # A-Z range: ASCII-only by design
+disable=SC2018  # a-z range: ASCII-only by design
+disable=SC2126  # grep|wc -l: fine for these one-shot counts
+disable=SC2001  # sed-vs-${//}: sed substitution is intentional
+disable=SC2002  # useless-cat: 'cat file | cmd' is a deliberate readable idiom (stdin-not-path-arg for Windows node); style-only, flagged by the hosted shellcheck 0.9.0 but not 0.11.0 — disabled for local/hosted version parity

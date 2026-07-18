@@ -34,7 +34,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
       # macOS only (AC-6). Prepend a shim so a bare `bash` resolves to stock /bin/bash 3.2.57
       # ahead of any Homebrew bash 5. run-all.sh invokes each test via bare `bash "$t"`, so
@@ -74,3 +74,41 @@ jobs:
       # keeps the generic login from false-positiving. The static PATTERNS set is the real identity gate.
       - name: Leak scanner (sanitize-check.sh)
         run: bash bin/sanitize-check.sh
+
+  lint:
+    name: shell + workflow lint
+    runs-on: ubuntu-latest
+    # Static-analysis lane (R-shellcheck-gate). Runs in PARALLEL to the behavioral `suite`
+    # matrix (no `needs:`), so it never blocks/delays the suite and vice-versa. ubuntu-latest
+    # ships shellcheck preinstalled -- no install step for it.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      # shellcheck (preinstalled on ubuntu runners). --shell=bash: every tracked .sh is
+      # #!/usr/bin/env bash, so bash-only constructs ([[ ]], arrays) must NOT flag as POSIX
+      # violations (AC-4). Policy (armed correctness codes / disabled noise) lives in the
+      # repo-root .shellcheckrc, which shellcheck reads automatically when run from the root.
+      # -z / -0: NUL-delimited file list, robust to any path.
+      - name: shellcheck (all tracked .sh, --shell=bash)
+        run: |
+          shellcheck --version
+          git ls-files -z '*.sh' | xargs -0 shellcheck --shell=bash
+
+      # actionlint: validate the workflow YAML (runner labels, expressions, action refs, syntax).
+      # Pinned version + published SHA256, verified fail-CLOSED before the binary runs (rule #8
+      # supply-chain). -shellcheck= DISABLES actionlint's embedded shellcheck-of-run-blocks: the
+      # standalone shellcheck step above owns shell linting under our single .shellcheckrc policy;
+      # actionlint owns workflow-structure validation only (no double-lint / policy divergence).
+      - name: actionlint (pinned + checksum, fail-closed)
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -euo pipefail
+          tarball="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${tarball}"
+          curl -fsSL -o "$tarball" "$url"
+          echo "${ACTIONLINT_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball" actionlint
+          ./actionlint -color -shellcheck=

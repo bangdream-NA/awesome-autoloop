@@ -123,7 +123,7 @@ fi
 # A per-verdict file holds ONE review → whole-file read; the monolith path keeps its ^## PR #N
 # block-bounding. The decide_verdict + HEAD-SHA bind below run identically on whichever resolves
 # (AC-R9 stricter-or-equal).
-PV=$(ls "$PROJECT_DIR"/.claude/reviews/pr${PR_NUM}-r*.md 2>/dev/null | sort -V | tail -1 || true)
+PV=$(ls "$PROJECT_DIR/.claude/reviews/pr${PR_NUM}-r"*.md 2>/dev/null | sort -V | tail -1 || true)
 if [ -n "$PV" ] && [ -f "$PV" ]; then
   LATEST_BLOCK=$(cat "$PV")
 else

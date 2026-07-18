@@ -15,7 +15,6 @@
 
 PROJECT_DIR="${PROJECT_DIR:-<PROJECT_DIR>}"
 SRC="$PROJECT_DIR/<your/source/root>"
-UTIL="$SRC/util"
 
 echo "GOLDEN PRINCIPLES GC SCAN — $(date +%Y-%m-%d)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -64,7 +63,7 @@ MULTI=""
 while IFS= read -r f; do
   COUNT=$(grep -c "^class \|^data class \|^object \|^interface \|^sealed \|^enum class \|^abstract class " "$f" 2>/dev/null) || COUNT=0
   if [ "$COUNT" -gt 2 ]; then
-    REL="${f#$SRC/}"
+    REL="${f#"$SRC"/}"
     MULTI="${MULTI}  $REL: $COUNT declarations\n"
   fi
 done < <(find "$SRC" -name "*.kt" -not -path "*/test/*")
@@ -92,7 +91,7 @@ echo "## H5: Oversized files"
 OVER=""
 while IFS= read -r f; do
   L=$(wc -l < "$f")
-  REL="${f#$SRC/}"
+  REL="${f#"$SRC"/}"
   if [ "$L" -gt 800 ]; then
     OVER="${OVER}  BLOCK $REL: $L lines (>800)\n"
   elif [ "$L" -gt 500 ]; then
@@ -114,7 +113,7 @@ while IFS= read -r f; do
   if grep -q "suspend fun" "$f" 2>/dev/null; then
     if grep -q "catch.*Exception" "$f" 2>/dev/null; then
       if ! grep -q "CancellationException" "$f" 2>/dev/null; then
-        REL="${f#$SRC/}"
+        REL="${f#"$SRC"/}"
         LINE=$(grep -n "catch.*Exception" "$f" | head -1 | cut -d: -f1)
         CE_ISSUES="${CE_ISSUES}  $REL:$LINE\n"
       fi

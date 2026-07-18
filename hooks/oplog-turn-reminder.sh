@@ -76,7 +76,8 @@ rotate_if_big() {  # <active-file> <successor-suffix-or-empty>
   { [ -n "$file" ] && [ -f "$file" ]; } || return 0
   local bytes; bytes=$(wc -c < "$file" 2>/dev/null | tr -d ' '); case "$bytes" in (*[!0-9]*|'') bytes=0 ;; esac
   [ "$bytes" -gt 250000 ] || return 0
-  local new="$PROJ/.claude/autoloop-log-$(date +%Y-%m-%d-%H%M%S)${suffix}.md"
+  local new
+  new="$PROJ/.claude/autoloop-log-$(date +%Y-%m-%d-%H%M%S)${suffix}.md"
   [ -e "$new" ] && return 0
   printf '# Autoloop op-log (rotated %s)\n\n> Previous %s frozen at %s bytes (Read-able, <256KB). Append new rows here.\n\n' \
     "$(date -u +%FT%TZ)" "$(basename "$file")" "$bytes" > "$new" 2>/dev/null || true

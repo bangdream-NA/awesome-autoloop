@@ -27,7 +27,7 @@ emit_warn()  { WARNS=$((WARNS + 1));   echo "  WARN: $1"; echo "  FIX: $2"; }
 [ -z "$FILE" ] && exit 0
 [ -f "$FILE" ] || exit 0
 
-REL="${FILE#$SRC/}"
+REL="${FILE#"$SRC"/}"
 LINES=$(wc -l < "$FILE")
 BASENAME=$(basename "$FILE" .kt)
 

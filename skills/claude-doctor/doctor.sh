@@ -29,9 +29,8 @@ say "0. config dir sanity (HOME guard)"
 HOOK_COUNT=$(ls "$HOOKS_DIR"/*.sh 2>/dev/null | wc -l | tr -d ' ')
 if [ ! -f "$SETTINGS" ] || [ "${HOOK_COUNT:-0}" -eq 0 ]; then
   bad "config dir $CLAUDE_DIR has NO settings.json / NO hooks — likely the WRONG HOME (\$HOME=$HOME)"
-  for cand in "$HOME"/.claude; do
-    [ -f "$cand/settings.json" ] && say "    → real config looks like: $cand — re-run: CLAUDE_CONFIG_DIR='$cand' bash $0"
-  done
+  cand="$HOME/.claude"
+  [ -f "$cand/settings.json" ] && say "    → real config looks like: $cand — re-run: CLAUDE_CONFIG_DIR='$cand' bash $0"
   say "    (If you launched bash from PowerShell and it resolved to WSL, use Git Bash instead, or set CLAUDE_CONFIG_DIR to your real .claude dir.)"
 else
   ok "config dir $CLAUDE_DIR ($HOOK_COUNT .sh hooks present)"

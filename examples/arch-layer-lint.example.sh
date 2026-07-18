@@ -30,7 +30,7 @@ WARNINGS=0
 
 check_file() {
   local FILE="$1"
-  local REL="${FILE#$SRC/}"
+  local REL="${FILE#"$SRC"/}"
 
   # Determine this file's layer
   local LAYER=""
@@ -61,7 +61,8 @@ check_file() {
   [[ "$LAYER" == "unknown" ]] && return
 
   # Extract app-internal imports
-  local IMPORTS=$(grep "^import ${PKG}\." "$FILE" 2>/dev/null | sed "s/import ${PKG}\.//" || true)
+  local IMPORTS
+  IMPORTS=$(grep "^import ${PKG}\." "$FILE" 2>/dev/null | sed "s/import ${PKG}\.//" || true)
   [ -z "$IMPORTS" ] && return
 
   while IFS= read -r imp; do
@@ -101,8 +102,9 @@ check_file() {
         ;;
       L5:ui)
         # UI composable: check cross-screen imports
-        local THIS_SCREEN=$(echo "$REL" | cut -d/ -f2)
-        local IMP_SCREEN=$(echo "$imp" | sed 's/^ui\.\([^.]*\)\..*/\1/')
+        local THIS_SCREEN IMP_SCREEN
+        THIS_SCREEN=$(echo "$REL" | cut -d/ -f2)
+        IMP_SCREEN=$(echo "$imp" | sed 's/^ui\.\([^.]*\)\..*/\1/')
         if echo "$imp" | grep -q "^ui\." && [ "$IMP_SCREEN" != "$THIS_SCREEN" ]; then
           # Allow imports from shared packages
           if ! echo "$imp" | grep -qE "^ui\.(theme|components|navigation)\."; then

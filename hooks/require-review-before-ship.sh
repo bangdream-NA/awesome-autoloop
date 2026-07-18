@@ -153,7 +153,7 @@ fi
 # Each per-verdict file holds ONE review, so a whole-file read replaces the monolith's ^## PR #N
 # block-bounding. `sort -V` orders r1 < r2 < r10 correctly. The verdict + HEAD-SHA checks below
 # run identically on whichever file resolves (AC-R9 stricter-or-equal).
-PV=$(ls "$PROJECT_DIR"/.claude/reviews/pr${PR_NUM}-r*.md 2>/dev/null | sort -V | tail -1 || true)
+PV=$(ls "$PROJECT_DIR/.claude/reviews/pr${PR_NUM}-r"*.md 2>/dev/null | sort -V | tail -1 || true)
 if [ -n "$PV" ] && [ -f "$PV" ]; then
   LATEST_BLOCK=$(cat "$PV")
 else
