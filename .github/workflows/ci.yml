@@ -68,10 +68,17 @@ jobs:
 
       # The scanner adds the runtime OS user as a forbidden pattern to catch the AUTHOR's real name
       # leaking into a shipped file. It now SKIPS that augmentation in CI at the source (it reads the
-      # CI env var — sanitize-check.sh:55), because the hosted OS login is a generic service account
+      # CI env var — sanitize-check.sh:145), because the hosted OS login is a generic service account
       # (`runner` / `runneradmin`) that occurs benignly across the tree. So the real runner env flows
       # straight through here with NO masking — the source guard, not a workflow-layer blank, is what
-      # keeps the generic login from false-positiving. The static PATTERNS set is the real identity gate.
+      # keeps the generic login from false-positiving.
+      #
+      # What this step can and cannot certify. The forbidden-pattern set and the domain denylist are
+      # LOADED from a wordlist outside the tree, and a hosted lane checks out no .claude/ — so this
+      # run loads NO patterns and reports `PARTIAL PASS (<n> findings; 2 arms not configured)` BY DESIGN.
+      # What it certifies is the wordlist-free arm: the CJK codepoint-range check, which is always
+      # on. The pattern and denylist arms are certified only by a run whose report header names a
+      # resolved wordlist — read that header before treating a report as covering them.
       - name: Leak scanner (sanitize-check.sh)
         run: bash bin/sanitize-check.sh
 

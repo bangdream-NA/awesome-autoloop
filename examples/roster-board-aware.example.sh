@@ -58,7 +58,7 @@ while IFS= read -r m; do
   for b in $BOARDS; do
     [ -f "$b" ] || continue
     # STRONGEST signal first: the FULL agent name as a fixed string — board log rows record
-    # dispatches verbatim ("派 planner-statichdr"), so a hit anywhere on the board = ACTIVE.
+    # dispatches verbatim ("dispatched planner-statichdr"), so a hit anywhere on the board = ACTIVE.
     # NOTE: -qiF core-dumps on some MSYS grep builds (even under LC_ALL=C) — use -qiE instead; agent
     # names ([A-Za-z0-9_-]) are ERE-literal-safe, and the -E path has never crashed here.
     if grep -qiE "$m" "$b" 2>/dev/null; then hit=1; break; fi
