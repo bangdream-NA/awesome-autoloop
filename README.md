@@ -20,7 +20,7 @@ Awesome Autoloop turns Claude Code into a disciplined software team. Work flows 
 **What you get**
 
 - 🤖 **A 6-agent pipeline** — `planner → plan-reviewer → uiux-designer → architect → developer → code-reviewer` — wired as Claude Code Agent Teams, with role gates that keep the order honest. `uiux-designer` runs on UI waves only.
-- 🛡️ **147 enforcement hooks in 5 toggleable groups** — commit hygiene, pipeline roles, merge gates, ledger hygiene, and post-merge "definition of done" walks. Deny-gates fail **closed**; nag-gates fail **open**.
+- 🛡️ **142 enforcement hooks in 5 toggleable groups** — commit hygiene, pipeline roles, merge gates, ledger hygiene, and post-merge "definition of done" walks. Deny-gates fail **closed**; nag-gates fail **open**.
 - 🧩 **Yours to adapt** — the hooks + agents mount read-only from the plugin; an interactive installer copies an *editable* CLAUDE.md framework + rules + a task-board template into your own `.claude/`.
 
 ```text
