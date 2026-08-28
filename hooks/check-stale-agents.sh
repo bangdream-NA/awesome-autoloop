@@ -1,21 +1,4 @@
 #!/usr/bin/env bash
-# check-stale-agents.sh — Stop hook backstop.
-#
-# Codifies the "team-lead must check idle teammates every ~30min" constraint.
-# Backstops the failure mode: agents go idle without sending a delivery, no artifact
-# lands, the lead doesn't notice → wasted time.
-#
-# Mechanism: at every turn-end (Stop), find the team this session is leading,
-# list non-lead members, check each member's inbox file mtime (last time the
-# LEAD messaged them — proxy for "still being driven"). If a member's inbox
-# is >30min old AND the member is still listed alive, flag with decision:block.
-#
-# LOOP GUARD: like session-learnings.sh, we honor stop_hook_active to fire once
-# per turn. Combined with the natural force-stop after N consecutive blocks,
-# this can't infinite-loop the agent.
-#
-# THROTTLE: per-session window (default 1800s = 30min) so a single warned
-# stale-agent doesn't refire every turn.
 
 set -euo pipefail
 case ":${AAL_GATES:-commit-hygiene:pipeline-roles:merge-gates:ledger-hygiene:dod-walk:}:" in *":pipeline-roles:"*) ;; *) exit 0 ;; esac
@@ -27,14 +10,12 @@ aal_have_node || exit 0
 
 INPUT=$(cat)
 
-# Loop guard
 STOP_ACTIVE=$(json_get "$INPUT" stop_hook_active)
 [ "$STOP_ACTIVE" = "true" ] && exit 0
 
 SESSION_ID=$(json_get "$INPUT" session_id)
 [ -z "$SESSION_ID" ] && exit 0
 
-# Throttle per session
 WINDOW="${STALE_AGENTS_THROTTLE_SECS:-1800}"
 STATE_DIR="${CLAUDE_PLUGIN_DATA:-${TMPDIR:-/tmp}}/aal-state"
 mkdir -p "$STATE_DIR" 2>/dev/null || true
@@ -46,9 +27,8 @@ if [ -f "$STATE_FILE" ]; then
   if [ $((NOW - LAST)) -lt "$WINDOW" ]; then exit 0; fi
 fi
 
-# Find the team this session leads
 TEAM_DIR=""
-for cfg in "$HOME"/.claude/teams/*/config.json; do
+for cfg in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/teams/*/config.json; do
   [ -f "$cfg" ] || continue
   if grep -q "\"leadSessionId\"[[:space:]]*:[[:space:]]*\"$SESSION_ID\"" "$cfg" 2>/dev/null; then
     TEAM_DIR=$(dirname "$cfg")
@@ -61,7 +41,6 @@ MEMBERS_FILE="$TEAM_DIR/config.json"
 INBOX_DIR="$TEAM_DIR/inboxes"
 [ -d "$INBOX_DIR" ] || exit 0
 
-# Non-lead members + their inbox mtimes
 THRESHOLD=$((30*60))
 STALE=""
 COUNT=0

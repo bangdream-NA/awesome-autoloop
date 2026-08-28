@@ -1,27 +1,15 @@
 #!/usr/bin/env bash
-# render-finding-playwright-guard.sh — Stop check (consolidated via stop-dispatcher.sh): enforce
-# "render / user-visible findings are INDEPENDENTLY verified on the LIVE artifact before being
-# reported as confirmed or sent to a fix".
-#
-# An audit's finders/verifiers often use curl/grep (a real browser is a single-instance tool, it
-# can't fan out across many agents) — so the lead must do the live pass. A render / duplication /
-# count / element-presence claim about what the USER SEES is proven by a SCREENSHOT read visually
-# (or live getComputedStyle / post-hydration DOM), NEVER curl/grep or a raw querySelectorAll count.
-# A memorized rule the lead keeps skipping is DECORATIVE; this turn-end reminder makes it DETECTED.
-# Default SKIP, throttled, loop-guarded — same pattern as oplog-turn-reminder.sh.
 set -euo pipefail
 case ":${AAL_GATES:-commit-hygiene:pipeline-roles:merge-gates:ledger-hygiene:dod-walk:}:" in *":dod-walk:"*) ;; *) exit 0 ;; esac
 source "$(dirname "$0")/lib/activation.sh"
 aal_is_autoloop_project || exit 0
 source "$(dirname "$0")/lib/parse-json.sh"
-aal_have_node || exit 0   # fail-OPEN: a turn-end reminder must not block on a node-less box
+aal_have_node || exit 0
 INPUT=$(cat)
 
-# Loop guard: fire once per turn.
 STOP_ACTIVE=$(json_get "$INPUT" stop_hook_active)
 [ "$STOP_ACTIVE" = "true" ] && exit 0
 
-# Throttle: fire at most once per WINDOW per session.
 WINDOW="${RENDER_GUARD_THROTTLE_SECS:-1800}"
 SESSION_ID=$(json_get "$INPUT" session_id)
 STATE_DIR="${CLAUDE_PLUGIN_DATA:-${TMPDIR:-/tmp}}/aal-state"

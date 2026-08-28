@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-// PreToolUse(Bash) — block compounding `git commit`/`git add` with `git push`/`gh pr merge`
-// in ONE command. The whole-command-deny trap (pipeline-discipline §8): when a gated op
-// (git push / gh pr merge) in a compound `A && B && push` is denied by the auto-mode
-// classifier or a merge gate, the ENTIRE command fails — so the earlier `git add`/`git commit`
-// SILENTLY does NOT run, and you proceed believing it committed (then act on the false
-// assumption). Fail LOUD here instead of letting the classifier deny the whole opaque blob.
-// Stack-agnostic (pure git-command hygiene). FAIL-OPEN (footgun-preventer, not a security gate).
 import { readFileSync } from 'node:fs'
 
 let input
@@ -16,7 +9,7 @@ if (!cmd) process.exit(0)
 
 const hasCommit = /\bgit\s+(commit|add)\b/.test(cmd)
 const hasPush = /\bgit\s+push\b/.test(cmd) || /\bgh\s+pr\s+merge\b/.test(cmd)
-const hasSeparator = /&&|;|\|/.test(cmd) // sequencing/pipe joins more than one command
+const hasSeparator = /&&|;|\|/.test(cmd)
 
 if (hasCommit && hasPush && hasSeparator) {
   process.stdout.write(JSON.stringify({
@@ -33,4 +26,4 @@ if (hasCommit && hasPush && hasSeparator) {
   }))
   process.exit(0)
 }
-process.exit(0) // allow
+process.exit(0)

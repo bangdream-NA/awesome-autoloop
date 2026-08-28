@@ -1,17 +1,4 @@
 #!/usr/bin/env bash
-# EXAMPLE — not mounted; copy into your own ~/.claude/hooks/ + wire it in your settings.json
-# (or just run it standalone: `bash golden-gc-scan.example.sh`).
-#
-# A "golden principles" GC scan (Kotlin / Compose stack pattern): a standalone debt/drift report an
-# agent can read to find scattered helpers, unsafe casts, multi-class files, star imports, oversized
-# files, missing CancellationException rethrows, hardcoded UI strings, and LiveData usage. It is a
-# REPORT, not a gate — it prints findings + fixes; nothing is denied. Run it periodically.
-#
-# This is the SHAPE of a stack-specific scan; replace the placeholders below with your own:
-#   <PROJECT_DIR>            your project root
-#   <your/source/root>      the path under PROJECT_DIR holding your package tree
-#   <your-helper-patterns>  the private-helper name fragments YOUR codebase tends to scatter
-# Adapt the H*/G* checks to YOUR conventions; the SHAPE (one scan, parseable findings) is the point.
 
 PROJECT_DIR="${PROJECT_DIR:-<PROJECT_DIR>}"
 SRC="$PROJECT_DIR/<your/source/root>"
@@ -20,10 +7,7 @@ echo "GOLDEN PRINCIPLES GC SCAN — $(date +%Y-%m-%d)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# ─── H1: Shared util, not local helpers ───
 echo "## H1: Duplicate/scattered helpers"
-# Find private format/convert/parse/map/calculate functions that appear in multiple files.
-# Adapt <your-helper-patterns> to the helper-name fragments your codebase tends to duplicate.
 DUPES=""
 for PATTERN in "<your-helper-patterns>" "calculate\|compute"; do
   HITS=$(grep -rn "private fun.*$PATTERN" "$SRC" --include="*.kt" 2>/dev/null | grep -v test/)
@@ -32,7 +16,6 @@ for PATTERN in "<your-helper-patterns>" "calculate\|compute"; do
     DUPES="${DUPES}${HITS}\n"
   fi
 done
-# Also find functions that exist in non-util packages but could be shared
 SCATTERED=$(grep -rn "^private fun format\|^private fun convert\|^private fun parse\|^private fun map" "$SRC" --include="*.kt" 2>/dev/null | grep -v "util/\|test/" | sed "s|$SRC/||")
 if [ -n "$SCATTERED" ]; then
   echo "$SCATTERED" | head -10
@@ -44,7 +27,6 @@ else
 fi
 echo ""
 
-# ─── H2: Typed data, not guessed shapes ───
 echo "## H2: Unsafe casts"
 UNSAFE=$(grep -rn " as [A-Z]" "$SRC" --include="*.kt" 2>/dev/null | grep -v "test/\| as?\|import\|getSystemService\|context\." | sed "s|$SRC/||")
 if [ -n "$UNSAFE" ]; then
@@ -57,7 +39,6 @@ else
 fi
 echo ""
 
-# ─── H3: One class per file ───
 echo "## H3: Multi-class files"
 MULTI=""
 while IFS= read -r f; do
@@ -75,7 +56,6 @@ else
 fi
 echo ""
 
-# ─── H4: Star imports ───
 echo "## H4: Star imports"
 STARS=$(grep -rn "^import.*\.\*$" "$SRC" --include="*.kt" 2>/dev/null | grep -v test/ | sed "s|$SRC/||")
 if [ -n "$STARS" ]; then
@@ -86,7 +66,6 @@ else
 fi
 echo ""
 
-# ─── H5: File size ───
 echo "## H5: Oversized files"
 OVER=""
 while IFS= read -r f; do
@@ -106,7 +85,6 @@ else
 fi
 echo ""
 
-# ─── G3: CancellationException ───
 echo "## G3: Missing CancellationException rethrow"
 CE_ISSUES=""
 while IFS= read -r f; do
@@ -128,7 +106,6 @@ else
 fi
 echo ""
 
-# ─── G4: Hardcoded strings in Composables ───
 echo "## G4: Hardcoded strings in UI"
 HARDCODED=$(grep -rn 'text = "[A-Z]' "$SRC/ui/" --include="*.kt" 2>/dev/null | grep -v "test/\|preview\|Preview" | sed "s|$SRC/||" | head -10)
 if [ -n "$HARDCODED" ]; then
@@ -141,7 +118,6 @@ else
 fi
 echo ""
 
-# ─── G5: LiveData check ───
 echo "## G5: LiveData usage (should be StateFlow)"
 LIVEDATA=$(grep -rn "LiveData\|MutableLiveData" "$SRC" --include="*.kt" 2>/dev/null | grep -v test/ | sed "s|$SRC/||")
 if [ -n "$LIVEDATA" ]; then
@@ -152,11 +128,9 @@ else
 fi
 echo ""
 
-# ─── Summary ───
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "SCAN COMPLETE"
 
-# Count issues
 TOTAL_BLOCK=0
 TOTAL_WARN=0
 [ -n "$CE_ISSUES" ] && TOTAL_BLOCK=$((TOTAL_BLOCK + $(echo -e "$CE_ISSUES" | grep -c "." || echo 0)))

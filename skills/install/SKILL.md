@@ -5,7 +5,7 @@ description: Interactive installer for the Awesome Autoloop framework templates.
 
 # Awesome Autoloop installer
 
-The plugin's hooks, agents, and skills mount automatically when the plugin is enabled — they run from the plugin and are NOT copied. This installer copies the **editable, user-owned templates** (the CLAUDE.md framework, `rules/common/principles.md` + `pipeline-discipline.md`, and a BACKLOG template) into your own `.claude/`, parameterized to your project. It never clobbers an existing CLAUDE.md, and it is idempotent and non-destructive — re-run it any time: it updates the CLAUDE.md managed block in place, writes a `<rule>.new` sidecar for any changed rule (your edited copy is kept), and never touches your existing BACKLOG.md.
+The plugin's hooks, agents, and skills mount automatically when the plugin is enabled — they run from the plugin and are NOT copied. This installer copies the **editable, user-owned templates** (the CLAUDE.md framework, all four `rules/common/*.md` discipline files, and a BACKLOG template) into your own `.claude/`, parameterized to your project. It never clobbers an existing CLAUDE.md, and it is idempotent and non-destructive — re-run it any time: it updates the CLAUDE.md managed block in place, writes a `<rule>.new` sidecar for any changed rule (your edited copy is kept), and never touches your existing BACKLOG.md.
 
 ## How to run it
 
@@ -21,7 +21,7 @@ Ask the user the questions below (accept the [default] on enter), then invoke th
    - 3b (only if yes) **Worktree root** — the slug your worktrees live under → `--worktree-root`.
 4. **Gate groups** — which to enable? Show all five with a one-line description, ALL defaulted ON; the user presses Enter to accept all, or deselects any they don't want.
    - `commit-hygiene` — commit message + staging hygiene (needs bash/node/git; can't surprise you).
-   - `pipeline-roles` — the 5-agent role gates + lifecycle reminders (needs bash/node/git).
+   - `pipeline-roles` — the 6-agent role gates + lifecycle reminders (needs bash/node/git).
    - `merge-gates` — PR-green + reviewer-verdict gates (needs `gh` + a GitHub-PR workflow). Suggest deselecting if the user doesn't use GitHub PRs.
    - `ledger-hygiene` — warn-only Stop nags about ledger size + worktree pile-up.
    - `dod-walk` — post-merge walk discipline (one Stop gate blocks an unwalked merge; the rest warn). Needs bash/node/git.
@@ -62,7 +62,7 @@ Add `--worktree-root <slug>`, `--notify-webhook <url>`, or `--notify-cmd '<cmd>'
 
 The installer copies these editable templates into your `.claude/` (parameterized to your project):
 - `CLAUDE.md` — the framework managed block (created or appended; never clobbers your content)
-- `rules/common/principles.md` + `rules/common/pipeline-discipline.md` — the discipline rules (sidecar `.new` on update)
+- `rules/common/principles.md`, `pipeline-discipline.md`, `absence-and-tokens.md`, `gate-authoring.md` — the four discipline rule files the managed CLAUDE.md block names (sidecar `.new` on update)
 - `BACKLOG.md` — your task board (skip-if-exists; never overwritten)
 - `struggle-log.md` — the execution struggle log: a running record of mistakes / harness friction that the `self-improve` skill mines for recurring patterns (skip-if-exists; never overwritten)
 
@@ -70,7 +70,7 @@ The installer copies these editable templates into your `.claude/` (parameterize
 
 On `--apply` the helper WRITES the env block into your `settings.json` automatically (a single parse→merge→write that preserves your other env keys): `AAL_GATES` (your selected gate groups) plus `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` (the Agent Teams prerequisite — see below), and `AAL_WORKTREE_ROOT` / `AAL_NOTIFY_*` when you opted into them. No manual merge step. The mounted hooks read `AAL_GATES` at runtime to know which gate groups are on; if it's unset, the default `commit-hygiene:pipeline-roles:merge-gates:ledger-hygiene:dod-walk` set (all five groups) applies. After applying, offer to tailor the setup to the project by chaining into `/project-profiler` (the tailoring tail below).
 
-> **Prerequisite — Agent Teams.** The 5-agent pipeline requires Claude Code Agent Teams. The installer sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in your `settings.json` env on `--apply`. If a user runs the helper but never applies (dry-run only), tell them to set it by hand — without it teammate dispatch fails and the `block-bare-agent` gate dead-ends every dispatch. You pass any `team_name` string in the `Agent()` call — there is no separate `TeamCreate` step (TeamCreate was removed in Claude Code v2.1.178).
+> **Prerequisite — Agent Teams.** The 6-agent pipeline requires Claude Code Agent Teams. The installer sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in your `settings.json` env on `--apply`. If a user runs the helper but never applies (dry-run only), tell them to set it by hand — without it teammate dispatch fails and the `block-bare-agent` gate dead-ends every dispatch. You pass any `team_name` string in the `Agent()` call — there is no separate `TeamCreate` step (TeamCreate was removed in Claude Code v2.1.178).
 
 Notification (if you enabled it) is opt-in and never blocks: see `bin/notify` — it no-ops when unconfigured and never fail-closes on an unreachable target.
 

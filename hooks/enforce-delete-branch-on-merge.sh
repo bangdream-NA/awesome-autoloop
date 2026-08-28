@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# PreToolUse/Bash: require `--delete-branch` on `gh pr merge`.
-# Branches pile up because merges omit --delete-branch AND squash-merge hides them
-# from `git branch --merged` so they never auto-clean. Forcing --delete-branch deletes
-# the remote + local tracking branch at merge time, killing the remote pile at the source.
 set -euo pipefail
 case ":${AAL_GATES:-commit-hygiene:pipeline-roles:merge-gates:ledger-hygiene:dod-walk:}:" in *":merge-gates:"*) ;; *) exit 0 ;; esac
 source "$(dirname "$0")/lib/activation.sh"
@@ -20,10 +16,8 @@ fi
 INPUT=$(cat)
 COMMAND=$(json_get "$INPUT" command)
 
-# Only gate `gh pr merge`.
 echo "$COMMAND" | grep -qE 'gh[[:space:]]+pr[[:space:]]+merge' || exit 0
 
-# Allow if --delete-branch present (any position).
 if echo "$COMMAND" | grep -qE -- '--delete-branch'; then
   exit 0
 fi

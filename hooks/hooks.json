@@ -4,60 +4,786 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-claude-dir-commit.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-coauthor-commit.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/enforce-conventional-commit.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/require-review-before-ship.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/require-tests-before-ship.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/require-pr-green-before-merge.sh"], "timeout": 15 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/require-codereviewer-verdict-before-merge.sh"], "timeout": 15 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/enforce-delete-branch-on-merge.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-pr-merge-stale-base.sh"], "timeout": 15 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/remind-walk-before-next-merge.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/require-backlog-reconciled-before-merge.sh"], "timeout": 15 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-compound-commit-push.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-non-lead-git-push-merge.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-multi-worktree-per-wave.sh"], "timeout": 8 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-pnpm-install-in-main.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-cleaned-data-commit.sh"], "timeout": 10 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-truncate-existing-ledger.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/require-oplog-row-for-this-merge.sh"], "timeout": 10 }
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-claude-dir-commit.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-coauthor-commit.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/enforce-conventional-commit.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-review-before-ship.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-tests-before-ship.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-pr-green-before-merge.sh"
+            ],
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-codereviewer-verdict-before-merge.sh"
+            ],
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/enforce-delete-branch-on-merge.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-pr-merge-stale-base.sh"
+            ],
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/remind-walk-before-next-merge.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-backlog-reconciled-before-merge.sh"
+            ],
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-compound-commit-push.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-non-lead-git-push-merge.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-multi-worktree-per-wave.sh"
+            ],
+            "timeout": 8
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-pnpm-install-in-main.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-cleaned-data-commit.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-truncate-existing-ledger.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-oplog-row-for-this-merge.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/backlog-guard.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/bash-commit-push-preflight.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/bash-dev-env-preflight.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/bash-gh-pr-merge-preflight.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/bash-ledger-archive-preflight.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/bash-push-family-preflight.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-cd-relative-write.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-git-dir-export-poison.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-headless-browser.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-inline-script-with-hostile-text.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-lead-writing-reviews.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-ledger-part-overwrite.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-pipe-swallowed-exit.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-visible-layer-change-under-no-design-scope.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-wildcard-delete.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/protect-backlog.sh"
+            ],
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-full-read-before-hook-edit.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-issue-ref-in-pr.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-owner-check-on-new-hook.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-owning-card-before-pr-create.sh"
+            ],
+            "timeout": 20
+          }
         ]
       },
       {
         "matcher": "Agent",
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-bare-agent.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/validate-agent-type.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-non-codereviewer-mode-b.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-spawn-over-roster-cap.sh"], "timeout": 8 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/enforce-planner-first.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/backlog-sop-validate.sh", "--mode", "pre-dispatch"], "timeout": 10 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/backlog-sop-validate.sh", "--mode", "pre-review"], "timeout": 10 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-codereviewer-for-plan-review.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/require-stallcheck-cron-before-dispatch.sh"], "timeout": 8 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/require-premise-verified-before-dev.sh"], "timeout": 8 }
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-bare-agent.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/validate-agent-type.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-non-codereviewer-mode-b.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-spawn-over-roster-cap.sh"
+            ],
+            "timeout": 8
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/enforce-planner-first.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/backlog-sop-validate.sh",
+              "--mode",
+              "pre-dispatch"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/backlog-sop-validate.sh",
+              "--mode",
+              "pre-review"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-codereviewer-for-plan-review.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-stallcheck-cron-before-dispatch.sh"
+            ],
+            "timeout": 8
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-premise-verified-before-dev.sh"
+            ],
+            "timeout": 8
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-agent-role-boundary-violation.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-autoloop-on-board-drift.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-duplicate-planner-dispatch.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-wave-for-known-server-op.sh"
+            ],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-design-scope-before-dev.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-dispatch-brief-anchors.sh"
+            ],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-knowledge-ref-in-dispatch.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-measured-ref-claim.sh"
+            ],
+            "timeout": 10
+          }
         ]
       },
       {
         "matcher": "SendMessage",
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-lead-plan-approval-response.sh"], "timeout": 5 }
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-lead-plan-approval-response.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-prose-shutdown.sh"
+            ],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-knowledge-contribute-on-declaration.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-measured-ref-claim.sh"
+            ],
+            "timeout": 10
+          }
         ]
       },
       {
         "matcher": "Write|Edit|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-backlog-status-drift.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-malformed-new-backlog-card.sh"], "timeout": 10 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-lead-editing-source.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-spec-doc-in-main-checkout.sh"], "timeout": 5 }
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-backlog-status-drift.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-malformed-new-backlog-card.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-lead-editing-source.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-spec-doc-in-main-checkout.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/backlog-guard.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-dod-verified-with-self-declared-gap.sh"
+            ],
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-frozen-knowledge-append.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-headless-browser.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-lead-writing-reviews.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-verdict-sha-not-read-from-commit.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/protect-backlog.sh"
+            ],
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-box-gated-items-on-card-before-merge.sh"
+            ],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-constraint-owner-before-relaxing.sh"
+            ],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-expiry-on-freeze-notice.sh"
+            ],
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-full-read-before-hook-edit.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-landing-on-oplog-next.sh"
+            ],
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-live-item-in-plan-dod.sh"
+            ],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-named-successor-on-deferral.sh"
+            ],
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-owner-check-on-new-hook.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-prior-ruling-search-on-new-card.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-ship-section-in-architecture.sh"
+            ],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-user-reruling-on-spec-override.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-wave-doc-read-before-dod-token.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/knowledge-role-isolation.sh"
+            ],
+            "timeout": 5
+          }
         ]
       },
       {
         "matcher": "Workflow",
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-audit-workflow-while-board-open.sh"], "timeout": 10 }
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-audit-workflow-while-board-open.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-workflow-pipeline-bypass.sh"
+            ],
+            "timeout": 8
+          }
+        ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-askuser-when-user-away.sh"
+            ],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-locked-decision-check-on-permission-option.sh"
+            ],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-root-cause-before-askuser.sh"
+            ],
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "TaskStop",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-prose-shutdown.sh"
+            ],
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Bash|Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-artifact-read-before-advance.sh"
+            ],
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__playwright__browser_run_code_unsafe|mcp__playwright__browser_resize",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/require-mobile-desktop-pair-in-browser-walk.sh"
+            ],
+            "timeout": 20
+          }
         ]
       }
     ],
@@ -65,45 +791,239 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/loop-detection.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/post-merge-cleanup-reminder.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/remind-shutdown-done-agent.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/post-pr-merge-walk-reminder.sh"], "timeout": 5 }
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/loop-detection.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/post-merge-cleanup-reminder.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/remind-shutdown-done-agent.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/post-pr-merge-walk-reminder.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/backlog-guard.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/post-merge-deploy-debt.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/protect-backlog.sh"
+            ],
+            "timeout": 20
+          }
         ]
       },
       {
         "matcher": "SendMessage",
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/remind-dispatch-reviewer-after-dev.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/prune-team-inboxes.sh"], "timeout": 10 }
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/remind-dispatch-reviewer-after-dev.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/prune-team-inboxes.sh"
+            ],
+            "timeout": 10
+          }
         ]
       },
       {
         "matcher": "Write|Edit|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/block-backlog-archive-residue.sh"], "timeout": 10 }
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-backlog-archive-residue.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/backlog-issue-sync-trigger.sh"
+            ],
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/protect-backlog.sh"
+            ],
+            "timeout": 20
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/remind-shutdown-predecessor-on-dispatch.sh"
+            ],
+            "timeout": 20
+          }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/pipeline-reminder.sh"], "timeout": 5 },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/startup-context.sh"], "timeout": 5 }
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/pipeline-reminder.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/remind-surface-usergated-when-user-present.sh"
+            ],
+            "timeout": 60
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/stop-dispatcher.sh"], "timeout": 45 }
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/stop-dispatcher.sh"
+            ],
+            "timeout": 45
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/backlog-pilot.sh"
+            ],
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/block-deferral-without-landing.sh"
+            ],
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/stop-node-dispatcher.sh"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/stop-open-pr-ci-watch.sh"
+            ],
+            "timeout": 45
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/stop-shutdown-turn-tick.sh"
+            ],
+            "timeout": 10
+          }
         ]
       }
     ],
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/preflight.sh"], "timeout": 5 }
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/preflight.sh"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/cr-sdk-temp-cleanup.sh"
+            ],
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/reconcile-team-owner.sh"
+            ],
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/session-preflight.sh"
+            ],
+            "timeout": 15
+          }
         ]
       }
     ]

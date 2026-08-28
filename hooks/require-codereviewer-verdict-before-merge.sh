@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# PreToolUse(Bash) — fail-closed BACKSTOP for the reviewer-ROLE gap.
-# require-pr-green checks the review is APPROVED + bound to HEAD, but NOT *who* authored it.
-# This hook BLOCKS `gh pr merge <N>` unless the code-reviews.md `## PR #N` block carries a
-# `Reviewer-type: code-reviewer` attestation — proving the Mode-B verdict was written by a
-# FRESH code-reviewer agent (subagent_type=code-reviewer), NOT an architect/planner/developer.
 set -euo pipefail
 case ":${AAL_GATES:-commit-hygiene:pipeline-roles:merge-gates:ledger-hygiene:dod-walk:}:" in *":merge-gates:"*) ;; *) exit 0 ;; esac
 source "$(dirname "$0")/lib/activation.sh"
@@ -36,19 +31,14 @@ EOF
   exit 0
 }
 
-# No PR number → let require-pr-green own that error; don't double-deny.
 [ -z "$PR_NUM" ] && exit 0
 
-# Resolve main repo (worktree-aware), mirroring require-pr-green-before-merge.sh
 PROJECT_DIR="$HOOK_PROJECT_DIR"
 COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || echo ".git")
 case "$COMMON_DIR" in
   */.git/worktrees/*) MAIN_GIT="${COMMON_DIR%/worktrees/*}"; PROJECT_DIR="${MAIN_GIT%/.git}" ;;
 esac
 
-# Per-verdict file reviews/pr<N>-r<round>.md (LATEST round) → monolith legacy. Q6: the attestation is
-# a `.md`-line concept (symmetric with the code-reviewer's per-verdict write); require-pr-green owns
-# the jsonl verdict+HEAD-SHA bind, so this gate reads the per-verdict `.md`, not jsonl.
 PV=$(ls "$PROJECT_DIR/.claude/reviews/pr${PR_NUM}-r"*.md 2>/dev/null | sort -V | tail -1 || true)
 if [ -n "$PV" ] && [ -f "$PV" ]; then
   LATEST_BLOCK=$(cat "$PV")
@@ -68,8 +58,6 @@ else
   fi
 fi
 
-# THE check: the code-reviewer self-stamps `Reviewer-type: code-reviewer` in its verdict.
-# Architect/planner/dev "reviews" lack it → blocked.
 if ! echo "$LATEST_BLOCK" | grep -qiE 'Reviewer-type:[[:space:]]*code-reviewer'; then
   deny "the ## PR #${PR_NUM} review block has NO 'Reviewer-type: code-reviewer' attestation. Mode-B review must be authored by a FRESH code-reviewer agent (subagent_type=code-reviewer), never an architect/planner/developer, and never a reused agent that touched the wave. Re-review with a fresh code-reviewer whose verdict includes the line 'Reviewer-type: code-reviewer'."
 fi

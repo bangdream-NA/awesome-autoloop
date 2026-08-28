@@ -1,14 +1,8 @@
 #!/usr/bin/env node
-// block-spec-doc-in-main-checkout.mjs
-// PreToolUse(Write|Edit|MultiEdit): a wave spec doc (plan/architecture/design) under
-// docs/product-specs/ MUST be written to the wave's WORKTREE, never the shared MAIN checkout.
-// Writing to main dirties the shared tree (blocks clean-tree/prod gates) and strands the doc off
-// the wave branch. No-ops unless AAL_MAIN_REPO is set (the shared main checkout path). Deny is
-// fail-OPEN: a parse error or a non-spec path never blocks an unrelated write.
 import { readFileSync } from 'node:fs';
 
 const MAIN = String(process.env.AAL_MAIN_REPO || '').replace(/\\/g, '/').replace(/\/+$/, '');
-if (!MAIN) process.exit(0);              // no main-checkout configured -> cannot judge -> no-op
+if (!MAIN) process.exit(0);
 
 let raw = '';
 try { raw = readFileSync(0, 'utf8'); } catch { process.exit(0); }

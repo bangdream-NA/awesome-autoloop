@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# remind-shutdown-done-agent.sh — PostToolUse hook (matcher: Bash).
-#
-# Fires at the deliverable-accepted moment: a successful `gh pr merge <N>` → shut down that
-# PR's FRESH code-reviewer (+ any dev/planner/plan-reviewer whose wave just merged). No shell
-# hook can SendMessage-shutdown for you; this is the nudge. (The harness task store is banned,
-# so the dead TaskCompleted event can't carry this — it lives on the merge event instead.)
 set -euo pipefail
 case ":${AAL_GATES:-commit-hygiene:pipeline-roles:merge-gates:ledger-hygiene:dod-walk:}:" in *":pipeline-roles:"*) ;; *) exit 0 ;; esac
 source "$(dirname "$0")/lib/activation.sh"
@@ -20,15 +14,15 @@ TOOL=$(printf '%s' "$PAYLOAD" | node -e "let s='';process.stdin.on('data',c=>s+=
 CMD=$(printf '%s' "$PAYLOAD" | node -e "let s='';process.stdin.on('data',c=>s+=c);process.stdin.on('end',()=>{try{const o=JSON.parse(s);process.stdout.write((o.tool_input&&o.tool_input.command)||'')}catch{}});" 2>/dev/null || echo "")
 RESPONSE=$(printf '%s' "$PAYLOAD" | node -e "let s='';process.stdin.on('data',c=>s+=c);process.stdin.on('end',()=>{try{const r=JSON.parse(s).tool_response;process.stdout.write(typeof r==='string'?r:JSON.stringify(r)||'')}catch{}});" 2>/dev/null || echo "")
 
-# Only fire on a SUCCESSFUL `gh pr merge`
 printf '%s' "$CMD" | grep -qE '\bgh[[:space:]]+pr[[:space:]]+merge\b' || exit 0
 printf '%s' "$RESPONSE" | grep -qiE 'merged|successfully|squash' || exit 0
 
 PR_NUM=$(printf '%s' "$CMD" | grep -oE 'merge[[:space:]]+#?[0-9]+' | grep -oE '[0-9]+' | head -1 || true)
 
-# Per-session per-PR throttle (avoid double-fire on retries). C-04: key on session_id
-# PARSED FROM STDIN, not the undefined ${CLAUDE_SESSION_ID} env var (collapses to "unknown"
-# → a shared cross-session/cross-repo sentinel that suppresses the reminder machine-globally).
+# A merge command with no resolvable PR number produces an empty PR_NUM, and the reminder then
+# reads "PR # merge succeeded" — a message pointing the reader at nothing. Silence is the
+# correct output when the gate cannot say WHICH pull request it is talking about.
+[ -z "$PR_NUM" ] && exit 0
 SESSION_ID=$(json_get "$PAYLOAD" session_id)
 [ -z "$SESSION_ID" ] && SESSION_ID="unknown"
 SENTINEL="${TMPDIR:-/tmp}/aal-shutdown-reviewer-${SESSION_ID}-pr${PR_NUM}.flag"

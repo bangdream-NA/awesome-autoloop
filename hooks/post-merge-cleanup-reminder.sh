@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# post-merge-cleanup-reminder.sh
-# PostToolUse hook (matcher: Bash)
-# After a successful `gh pr merge`, remind the team-lead to:
-#   1. Update the task board (BACKLOG.md — the single source of truth)
-#   2. Remove this wave's worktrees
-#   3. Delete local + remote branches
-#   4. Make a doc-sync decision
 
 set -euo pipefail
 case ":${AAL_GATES:-commit-hygiene:pipeline-roles:merge-gates:ledger-hygiene:dod-walk:}:" in *":pipeline-roles:"*) ;; *) exit 0 ;; esac
@@ -25,32 +18,44 @@ CMD=$(printf '%s' "$PAYLOAD" | node -e "let s=''; process.stdin.on('data',c=>s+=
 
 RESPONSE=$(printf '%s' "$PAYLOAD" | node -e "let s=''; process.stdin.on('data',c=>s+=c); process.stdin.on('end',()=>{try{const o=JSON.parse(s);const r=o.tool_response;process.stdout.write(typeof r==='string'?r:JSON.stringify(r)||'')}catch{}});" 2>/dev/null || echo "")
 
-# Only fire on successful gh pr merge
-IS_MERGE=$(printf '%s' "$CMD" | grep -cE '\bgh[[:space:]]+pr[[:space:]]+merge\b' || true)
+# The merge test goes through lib/merge-intent.sh, the ONE owner of "is this an actual merge
+# invocation". Grepping the whole command here instead fires on any command that merely QUOTES
+# the phrase — `grep -rho 'gh pr merge 1472 --squash' notes.md` produced a full post-merge
+# checklist for a PR nobody merged. Two files ask this question; a second private predicate is how
+# they drift apart.
+# shellcheck source=lib/merge-intent.sh
+. "$(dirname "$0")/lib/merge-intent.sh" 2>/dev/null || true
+if command -v is_merge_invocation >/dev/null 2>&1; then
+  IS_MERGE=0; is_merge_invocation "$CMD" && IS_MERGE=1
+else
+  IS_MERGE=$(printf '%s' "$CMD" | grep -cE '\bgh[[:space:]]+pr[[:space:]]+merge\b' || true)
+fi
 if [ "$IS_MERGE" = "0" ]; then
   exit 0
 fi
 
-# Check response indicates success (merged, not error)
 HAS_MERGED=$(printf '%s' "$RESPONSE" | grep -ciE 'merged|Merged|successfully' || true)
 if [ "$HAS_MERGED" = "0" ]; then
   exit 0
 fi
 
-# Extract PR number from command
 PR_NUM=$(printf '%s' "$CMD" | grep -oE 'merge[[:space:]]+([0-9]+)' | grep -oE '[0-9]+' | head -1 || true)
+# A merge command with no resolvable PR number yields an empty PR_NUM, and the reminder then
+# names no pull request at all. Silence is the correct output when the gate cannot say WHICH
+# PR it is talking about.
+[ -z "$PR_NUM" ] && exit 0
 
-# Resolve the project dir for the board path hint (env / git root).
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo "<project>")}"
-# Escape for JSON string embedding (a Windows path's backslashes would be invalid JSON escapes,
-# silently dropping the whole additionalContext). Same idiom as the sibling hooks.
 PROJECT_DIR_ESC=$(printf '%s' "$PROJECT_DIR" | sed 's/\\/\\\\/g; s/"/\\"/g')
 
-# Per-session per-PR throttle. C-04: key on session_id PARSED FROM STDIN, not the
-# undefined ${CLAUDE_SESSION_ID} env var (which collapses to "unknown" → a cross-session/
-# cross-repo shared sentinel that suppresses the reminder machine-globally).
 SESSION_ID=$(json_get "$PAYLOAD" session_id)
 [ -z "$SESSION_ID" ] && SESSION_ID="unknown"
+# This hook is mounted on TWO events, so the event name it ECHOES has to be the one it RECEIVED.
+# Hard-coding "PostToolUse" makes the harness reject the response outright ("Hook returned incorrect
+# event name") on the other mount — and the failing path is the one that runs when a command
+# FAILED, i.e. exactly when the reminder matters.
+EVENT=$(printf '%s' "$PAYLOAD" | node -e "let s=''; process.stdin.on('data',c=>s+=c); process.stdin.on('end',()=>{try{const o=JSON.parse(s);process.stdout.write(o.hook_event_name||'')}catch{}});" 2>/dev/null || echo "")
+[ -z "$EVENT" ] && EVENT="PostToolUse"
 SENTINEL="${TMPDIR:-/tmp}/aal-post-merge-cleanup-${SESSION_ID}-pr${PR_NUM}.flag"
 if [ -f "$SENTINEL" ]; then
   exit 0
@@ -61,7 +66,7 @@ find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'aal-post-merge-cleanup-*.flag' -mtime 
 cat <<EOF
 {
   "hookSpecificOutput": {
-    "hookEventName": "PostToolUse",
+    "hookEventName": "$EVENT",
     "additionalContext": "POST-MERGE CHECKLIST for PR #${PR_NUM} (do ALL NOW — every one rots if deferred):\n1. UPDATE the task board ($PROJECT_DIR_ESC/.claude/BACKLOG.md) — the SINGLE source of truth: move the wave to the Done section + add a '— log:' line with the merge SHA. (The harness task store is NOT canonical; BACKLOG.md is.)\n2. Remove this wave's worktrees: git worktree remove --force <its worktree dir> (verify via 'git worktree list')\n3. Delete branches LOCAL + REMOTE (the merge's --delete-branch handles the remote; remove any local tracking branch). Squash-merged branches → match 'gh pr list --state merged --json headRefName', not is-ancestor.\n4. Doc-sync: did this change documented behavior? yes → update the docs; no → record 'doc-sync: SKIP — <reason>'."
   }
 }

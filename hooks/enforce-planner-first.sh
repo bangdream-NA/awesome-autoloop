@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# PreToolUse hook on Agent: BLOCK developer spawn if no planner ran first
-# For feature work, planner must create spec before developer implements
-# Checks if a spec file was created in docs/product-specs/ during this team's lifetime
 
 set -euo pipefail
 case ":${AAL_GATES:-commit-hygiene:pipeline-roles:merge-gates:ledger-hygiene:dod-walk:}:" in *":pipeline-roles:"*) ;; *) exit 0 ;; esac
@@ -14,19 +11,14 @@ INPUT=$(cat)
 AGENT_TYPE=$(echo "$INPUT" | grep -o '"subagent_type"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"subagent_type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' || echo "")
 TEAM_NAME=$(echo "$INPUT" | grep -o '"team_name"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"team_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' || echo "")
 
-# Only check when spawning a developer in a team
 if [ "$AGENT_TYPE" != "developer" ] || [ -z "$TEAM_NAME" ]; then
   exit 0
 fi
 
-# Skip check for teams that are clearly bug fixes (name contains "fix" or "bug" or "hotfix")
 if echo "$TEAM_NAME" | grep -qiE 'fix|bug|hotfix|patch'; then
   exit 0
 fi
 
-# Check if any spec file exists in docs/product-specs/ that was modified in the last 30 minutes
-# This indicates the planner already ran. Resolve the project dir from env / git root —
-# never hardcode a project default.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo "")}"
 SPECS_DIR="$PROJECT_DIR/docs/product-specs"
 
@@ -37,17 +29,14 @@ EOF
   exit 0
 fi
 
-# Check if any spec was recently modified (within last 30 min = 1800 seconds)
 RECENT_SPEC=$(find "$SPECS_DIR" -name "*.md" -mmin -30 2>/dev/null | head -1 || true)
 
 if [ -z "$RECENT_SPEC" ]; then
-  # Also check if planner agent exists in the team config (already ran and shut down)
-  TEAM_CONFIG="$HOME/.claude/teams/$TEAM_NAME/config.json"
+  TEAM_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/teams/$TEAM_NAME/config.json"
   if [ -f "$TEAM_CONFIG" ] && grep -q '"planner"' "$TEAM_CONFIG" 2>/dev/null; then
     exit 0
   fi
 
-  # Auto-log
   DATE=$(date +%Y-%m-%d)
   STRUGGLE_LOG="$PROJECT_DIR/.claude/struggle-log.md"
   if [ -f "$STRUGGLE_LOG" ]; then

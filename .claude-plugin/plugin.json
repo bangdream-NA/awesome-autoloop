@@ -1,11 +1,11 @@
 {
   "name": "awesome-autoloop",
   "displayName": "Awesome Autoloop",
-  "version": "1.0.1",
-  "description": "An opinionated 5-agent pipeline + enforcement-hook framework for Claude Code.",
-  "author": { "name": "Water_Melon" },
-  "homepage": "https://github.com/suhang56/awesome-autoloop",
-  "repository": "https://github.com/suhang56/awesome-autoloop",
+  "version": "1.1.0",
+  "description": "An opinionated 6-agent pipeline + enforcement-hook framework for Claude Code.",
+  "author": { "name": "suhang56" },
+  "homepage": "https://github.com/bangdream-NA/awesome-autoloop",
+  "repository": "https://github.com/bangdream-NA/awesome-autoloop",
   "license": "MIT",
-  "keywords": ["pipeline", "hooks", "enforcement", "autoloop", "agents", "5-agent"]
+  "keywords": ["pipeline", "hooks", "enforcement", "autoloop", "agents", "6-agent"]
 }

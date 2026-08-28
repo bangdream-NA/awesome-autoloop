@@ -6,7 +6,7 @@ first — they are the two things that, if missing, make the whole pipeline sile
 
 ## Prerequisites (do these BEFORE step 1)
 
-1. **Agent Teams must be enabled.** The 5-agent pipeline runs on Claude Code's Agent Teams feature.
+1. **Agent Teams must be enabled.** The 6-agent pipeline runs on Claude Code's Agent Teams feature.
    The installer sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in your `settings.json` env on
    `--apply` (`skills/install/install.mjs`). If you skipped the installer, set it by hand — without
    it teammate dispatch fails and the `block-bare-agent` gate dead-ends every dispatch. You pass any
@@ -114,6 +114,11 @@ gate. The seed `templates/walks/TEMPLATE.md` shows both forms.
 - **Runbooks** — for a server / deploy / data-pipeline operation, copy `templates/runbooks/TEMPLATE.md`
   to `docs/runbooks/<op>.md` and document the procedure + its known footguns. (It pairs with the
   `require-runbook-before-server-op` example gate if you mount it.)
+- **Agent knowledge base** — seed it once with `cp -r templates/knowledge/. ~/.claude/knowledge/`,
+  then have every dispatch brief tell the agent to read `~/.claude/knowledge/INDEX.md` and its own
+  `~/.claude/knowledge/<role>/INDEX.md`. The destination is `~/.claude/`, not the repo, because the
+  base accumulates **across** projects. `require-knowledge-ref-in-dispatch` blocks a brief that names
+  no knowledge path; this copy is the step that gate assumes you have already run.
 
 ## When a gate blocks you
 

@@ -2,29 +2,30 @@
 
 # 🔁 Awesome Autoloop
 
-**An opinionated 5-agent pipeline + enforcement-hook framework for [Claude Code](https://docs.claude.com/en/docs/claude-code).**
+**An opinionated 6-agent pipeline + enforcement-hook framework for [Claude Code](https://docs.claude.com/en/docs/claude-code).**
 
 It blocks some of your actions *on purpose* — and documents every single one.
 
-[![CI](https://github.com/suhang56/awesome-autoloop/actions/workflows/ci.yml/badge.svg)](https://github.com/suhang56/awesome-autoloop/actions/workflows/ci.yml)
+[![CI](https://github.com/bangdream-NA/awesome-autoloop/actions/workflows/ci.yml/badge.svg)](https://github.com/bangdream-NA/awesome-autoloop/actions/workflows/ci.yml)
 &nbsp;·&nbsp; [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-&nbsp;·&nbsp; version 1.0.0
+&nbsp;·&nbsp; version 1.1.0
 &nbsp;·&nbsp; for Claude Code (Agent Teams)
 
 </div>
 
 ---
 
-Awesome Autoloop turns Claude Code into a disciplined software team. Work flows through a fixed **5-agent pipeline**, and a layer of **enforcement hooks** holds the line — blocking a `Co-Authored-By` commit, an unreviewed merge, a developer dispatched before a spec exists, and ~30 other footguns. The gates are honest: every action a hook can block is in the [trust table](#-the-trust-model), and **every gate no-ops in any repo that isn't an autoloop project** — your unrelated work is never touched.
+Awesome Autoloop turns Claude Code into a disciplined software team. Work flows through a fixed **6-agent pipeline**, and a layer of **enforcement hooks** holds the line — blocking a `Co-Authored-By` commit, an unreviewed merge, a developer dispatched before a spec exists, and well over a hundred other footguns. The gates are honest: every action a hook can block is in the [trust table](#-the-trust-model), and **every gate no-ops in any repo that isn't an autoloop project** — your unrelated work is never touched.
 
 **What you get**
 
-- 🤖 **A 5-agent pipeline** — `planner → plan-reviewer → architect → developer → code-reviewer` — wired as Claude Code Agent Teams, with role gates that keep the order honest.
-- 🛡️ **~30 enforcement hooks in 5 toggleable groups** — commit hygiene, pipeline roles, merge gates, ledger hygiene, and post-merge "definition of done" walks. Deny-gates fail **closed**; nag-gates fail **open**.
+- 🤖 **A 6-agent pipeline** — `planner → plan-reviewer → uiux-designer → architect → developer → code-reviewer` — wired as Claude Code Agent Teams, with role gates that keep the order honest. `uiux-designer` runs on UI waves only.
+- 🛡️ **147 enforcement hooks in 5 toggleable groups** — commit hygiene, pipeline roles, merge gates, ledger hygiene, and post-merge "definition of done" walks. Deny-gates fail **closed**; nag-gates fail **open**.
 - 🧩 **Yours to adapt** — the hooks + agents mount read-only from the plugin; an interactive installer copies an *editable* CLAUDE.md framework + rules + a task-board template into your own `.claude/`.
 
 ```text
-   you ─▶ planner ─▶ plan-reviewer ─▶ architect ─▶ developer ─▶ code-reviewer ─▶ merge
+   you ─▶ planner ─▶ plan-reviewer ─▶ uiux-designer ─▶ architect ─▶ developer ─▶ code-reviewer ─▶ merge
+                                     (UI waves only)
             │            (Mode A)         │            │            (Mode B)        │
             └──────────────────── enforcement hooks gate every step ───────────────┘
               commit-hygiene · pipeline-roles · merge-gates · ledger-hygiene · dod-walk
@@ -33,14 +34,14 @@ Awesome Autoloop turns Claude Code into a disciplined software team. Work flows 
 ## 🚀 Install
 
 ```text
-/plugin marketplace add suhang56/awesome-autoloop
+/plugin marketplace add bangdream-NA/awesome-autoloop
 /plugin install awesome-autoloop@awesome-autoloop
 /awesome-autoloop:install
 ```
 
 1. registers this repo as a marketplace · 2. installs the plugin (hooks + agents + skills mount automatically) · 3. runs the interactive installer that copies the editable framework templates into your `.claude/` and lets you choose which gate groups to enable. The third command is **idempotent** — re-run it any time.
 
-> **Prerequisite — Agent Teams.** The 5-agent pipeline needs Claude Code Agent Teams. The installer sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in your `settings.json` env on `--apply` (set it by hand if you skip the installer). You pass any `team_name` string in the `Agent()` call — there is **no separate `TeamCreate` step** (TeamCreate was removed in Claude Code v2.1.178). Without the env var, teammate dispatch fails and the `block-bare-agent` gate dead-ends every spawn.
+> **Prerequisite — Agent Teams.** The 6-agent pipeline needs Claude Code Agent Teams. The installer sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in your `settings.json` env on `--apply` (set it by hand if you skip the installer). You pass any `team_name` string in the `Agent()` call — there is **no separate `TeamCreate` step** (TeamCreate was removed in Claude Code v2.1.178). Without the env var, teammate dispatch fails and the `block-bare-agent` gate dead-ends every spawn.
 
 > **Two halves to turn it on.** The installer wires the **gate** half (hooks + the activation marker). You turn on the **drive** half: the Agent-Teams env var above *plus* an autonomous/auto driving posture (a standing goal + non-per-action permission) so the pipeline actually loops. Agent Teams alone leaves the team idle — see [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
@@ -63,7 +64,7 @@ This framework can block your tool calls. That power is the point — and so is 
 > **⚠️ Two hooks delete directories.** `roster-tripwire` and `block-spawn-over-roster-cap` prune *harness team dirs* under `~/.claude/teams/` that are untouched for >2 days (to clear stale-roster false-positives) — only dirs that look like a dead harness team (a `config.json` + mtime >2d), and only inside an autoloop project. They never touch your files.
 
 <details>
-<summary><b>📋 The full per-hook trust table (all ~30 hooks, by group)</b></summary>
+<summary><b>📋 The full per-hook trust table (by group)</b></summary>
 
 > **Stop tier runs through one mount.** Every `Stop` row is invoked by the single `stop-dispatcher` mount, which runs them in one process, merges all block reasons + all warns into ONE turn-end **block** message, and fails OPEN if node is absent. The per-check behaviors are unchanged — only the delivery is consolidated.
 
@@ -82,9 +83,9 @@ This framework can block your tool calls. That power is the point — and so is 
 
 | Hook | Event / matcher | Fail mode | Denies / warns | Deps |
 |---|---|---|---|---|
-| `stop-dispatcher` | Stop | **warn** | The single Stop mount. Runs every consolidated Stop check (the 9 `Stop` rows across the groups) in one process: drains stdin once + feeds each, isolates a crashing check, normalizes both block wire-forms, and merges all reasons + warns into ONE `decision:block` Stop JSON (warns folded into the reason). Always emits + exit 0; node-absent → every child no-ops (fails OPEN). Edit its one-line `CHECKS=( … )` registry to add/remove a check. | bash, node |
+| `stop-dispatcher` | Stop | **warn** | The single Stop mount. Runs every consolidated Stop check (the 12 `Stop` rows across the groups, 13 entries in its own `CHECKS` list) in one process: drains stdin once + feeds each, isolates a crashing check, normalizes both block wire-forms, and merges all reasons + warns into ONE `decision:block` Stop JSON (warns folded into the reason). Always emits + exit 0; node-absent → every child no-ops (fails OPEN). Edit its one-line `CHECKS=( … )` registry to add/remove a check. | bash, node |
 | `block-bare-agent` | PreToolUse / Agent | **deny** | Blocks a bare Agent spawn without a `team_name`, and a pipeline-role spawn missing a `name` or set `run_in_background:true` (a mailbox-less one-shot). | bash, node |
-| `validate-agent-type` | PreToolUse / Agent | **deny** | Blocks a `subagent_type` outside the allowed set (the 5 pipeline roles + Explore/general-purpose). | bash, node |
+| `validate-agent-type` | PreToolUse / Agent | **deny** | Blocks a `subagent_type` outside the allowed set (the 6 pipeline roles + Explore/general-purpose). | bash, node |
 | `block-non-codereviewer-mode-b` | PreToolUse / Agent | **deny** (default-allow) | Blocks a Mode-B / PR code-review dispatched to anything other than `code-reviewer`. Narrow trigger; default allow. | bash, node |
 | `block-spawn-over-roster-cap` | PreToolUse / Agent | **deny** | Blocks a new teammate spawn once the live roster hits the cap (`AAL_ROSTER_CAP`, default 16) — forces shutdown-of-done before spawn. | bash, node |
 | `enforce-planner-first` | PreToolUse / Agent | **deny** | Blocks a `developer` spawn for feature work when no recent spec exists in `docs/product-specs/`. Bug-fix team names (`fix`/`bug`) skip it. | bash, git |
@@ -171,7 +172,7 @@ The plugin mounts its hooks **globally**, but each hook self-skips outside an au
 - **MOUNTED** — the hooks, the 6 pipeline agents, and the skills run **from the plugin** (read-only cache). They can act on your tool calls and auto-update with the plugin. You don't edit them; override an agent by dropping a same-named file in your own `~/.claude/agents/`.
 - **COPIED** — the installer copies **editable templates** (the CLAUDE.md framework, `rules/common/*`, a BACKLOG template) into your own `.claude/`, parameterized to your project. Yours to edit; the installer never clobbers an existing CLAUDE.md (it manages a delimited block).
 
-Mounted files carry ZERO install-time variables — they parameterize at runtime via `${CLAUDE_PROJECT_DIR}`, `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}`, and the `${AAL_GATES}` env flag the installer writes. Copied templates parameterize at install time via `{{VAR}}` substitution.
+Mounted files carry ZERO install-time variables — they parameterize at runtime via `${CLAUDE_PROJECT_DIR}`, `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}`, `${CLAUDE_CONFIG_DIR}` (the config root, defaulting to `$HOME/.claude`), and the `${AAL_GATES}` env flag the installer writes. Copied templates parameterize at install time via `{{VAR}}` substitution.
 </details>
 
 <details>
@@ -180,7 +181,7 @@ Mounted files carry ZERO install-time variables — they parameterize at runtime
 The installer's gate-group question controls which groups mount, via an `AAL_GATES` env flag in your `settings.json`:
 
 - **commit-hygiene** (ON) — commit message + staging hygiene. Needs bash/node/git. Can't surprise you.
-- **pipeline-roles** (ON) — the 5-agent role gates + lifecycle reminders. Needs bash/node/git.
+- **pipeline-roles** (ON) — the 6-agent role gates + lifecycle reminders. Needs bash/node/git.
 - **merge-gates** (ON) — PR-green + reviewer-verdict gates. Need `gh` + a GitHub-PR + reviewer-ledger workflow; deselect if you don't use GitHub PRs.
 - **ledger-hygiene** (ON) — warn-only Stop nags about ledger size + worktree pile-up.
 - **dod-walk** (ON) — post-merge walk discipline; blocks turn-end if a merged PR has no walk artifact. Fail-OPEN on node-absent.
@@ -189,9 +190,9 @@ All five are ON by default. To change groups after install, edit `AAL_GATES` (co
 </details>
 
 <details>
-<summary><b>The 6 agents & 2 skills</b></summary>
+<summary><b>The 6 agents & 10 skills</b></summary>
 
-**Agents.** The 6 pipeline agents (`planner`, `plan-reviewer`, `uiux-designer`, `architect`, `developer`, `code-reviewer`) ship with `model` + `thinking` frontmatter OMITTED, so they inherit YOUR default model — they work on every plan, tier-independent. Run a richer tier by dropping a same-named agent file into your own `~/.claude/agents/`.
+**Agents.** The 6 pipeline agents (`planner`, `plan-reviewer`, `uiux-designer`, `architect`, `developer`, `code-reviewer`) ship with NO tier-pinning frontmatter at all — the shipped frontmatter of each is exactly `name` and `description` — so they inherit YOUR default model — they work on every plan, tier-independent. Run a richer tier by dropping a same-named agent file into your own `~/.claude/agents/`.
 
 **Skills** (besides `/awesome-autoloop:install`):
 - **`/awesome-autoloop:project-profiler`** — scans this project (manifests, CI, test runner, deploy surface) and PROPOSES a tailored setup (gate-group selection, what dod-walk means here, which `templates/rules/<stack>/` scaffold to adopt). Proposes only — nothing is written without an explicit approval step. The installer drops a `.pending-profile` marker on `--apply` and the SessionStart preflight nudges you to run it.
@@ -204,7 +205,7 @@ All five are ON by default. To change groups after install, edit `AAL_GATES` (co
 - **bash** — for the `.sh` hooks. Windows: Git for Windows (git-bash); macOS/Linux: native.
 - **node (≥18)** — for the JSON-parsing `.sh` hooks (via `lib/parse-json.sh`). Without it, the node-dependent **deny** gates fail CLOSED (a security gate that can't parse its payload must not silently allow); **warn** hooks degrade to a clean no-op. The only hooks that run with node absent are `enforce-planner-first`, `loop-detection`, `pipeline-reminder`, `worktree-count-guard`. A SessionStart preflight (`hooks/preflight.sh`) warns when node is missing.
 - **git / gh** — `git` for staging/branch hooks; `gh` (authenticated GitHub CLI) for the merge-gates group.
-- Local state lives under your project `.claude/` and is gitignored: the deny-event log (`.claude/.gate-denials`, rotated past 240KB) and the self-improve cadence marker (`.claude/.aal-state/self-improve-last-run`, a single un-keyed epoch-seconds int so the >24h nudge survives a session rotation). `loop-detection` logs to `${CLAUDE_PLUGIN_DATA}` (falling back to `${XDG_STATE_HOME:-$HOME/.local/state}`).
+- Local state lives under your project `.claude/` and is gitignored: the deny-event log (`.claude/.gate-denials`, rotated past 240KB) and the self-improve cadence marker (`.claude/.aal-state/self-improve-last-run`, a single un-keyed epoch-seconds int so the >24h nudge survives a session rotation). `loop-detection` logs to `${CLAUDE_PLUGIN_DATA}` (falling back to `${XDG_STATE_HOME:-$HOME/.local/state}`). Every gate that needs the Claude config root reads `${CLAUDE_CONFIG_DIR}`, defaulting to `$HOME/.claude`; set it to relocate the whole config tree.
 </details>
 
 ## 🧪 CI

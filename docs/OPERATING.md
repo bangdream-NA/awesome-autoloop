@@ -11,6 +11,16 @@ block in `CLAUDE.md`). In any other repo every hook self-skips. If a gate fired 
 expect, that repo carries one of those markers — opt out with `AAL_GATES=` (empty) in its
 `settings.json` env, or delete the marker.
 
+Second principle: 🔴 **this kit parses an ENGLISH board.** Every gate that reads `BACKLOG.md` matches
+the English field names — `- aliases:`, `- problem:`, `- fix:`, `- log:` — and the English status
+badges `QUEUED` / `IN-DEV` / `REVIEW` / `BLOCKED` / `USER-GATED`. A board written in another language,
+or one whose field names are typed with full-width punctuation, is **not recognised**: the gates do
+not error, they simply never fire, and a gate that never fires looks exactly like a gate that found
+nothing wrong. Stated here on purpose, because the manual is a better place to learn it than a
+silent no-op. (One deliberate exception: the `verdict:` marker a reviewer writes into
+`.claude/reviews/` still parses with a full-width colon — that is a reviewer's marker, not a board
+field.)
+
 > **Ledger model decoder (per-session / per-verdict / per-project).** The gates read a per-project,
 > per-session, per-verdict ledger layout — not one shared monolith:
 > - **Op-logs are per-session**: each session appends to its OWN `.claude/autoloop-log-<date>-<sid8>.md`
@@ -47,7 +57,7 @@ These fail CLOSED on a missing dependency (no node → they DENY): a commit slip
 broken gate is the worse outcome — EXCEPT `block-compound-commit-push`, which fails OPEN (a
 footgun-preventer must not block a legitimate commit when node is absent).
 
-### pipeline-roles — enforces the 5-agent pipeline order (deny for role gates, warn for reminders)
+### pipeline-roles — enforces the 6-agent pipeline order (deny for role gates, warn for reminders)
 
 | When you see | It means | Do this |
 |---|---|---|
@@ -66,7 +76,7 @@ footgun-preventer must not block a legitimate commit when node is absent).
 | dispatch denied: developer with no premise verdict | you dispatched a `developer` for a wave with no logged plan-review verdict (the dev gate reads `.claude/reviews/index.jsonl` first, `.claude/plan-reviews.md` legacy fallback) | dispatch the `plan-reviewer` (Mode A) for this wave first so its premise is LIVE-verified, then re-dispatch the developer — OR for a genuinely trivial no-premise change, append `# PREMISE-VERIFIED: <the live evidence you gathered>` to the dispatch prompt to override |
 | Bash denied: push/merge from a worktree | you ran `git push` or a `gh pr` mutation from a worktree cwd (you = a pipeline agent, not the lead) | commit locally, then SendMessage the team-lead (branch, SHA, file list, F-gate results) and STOP — the lead rebases + pushes + opens the PR from the main checkout. If you ARE the lead, `cd` into the main checkout first |
 | Bash denied: second worktree for a wave | you ran `git worktree add` for a wave that already has a worktree | reuse the wave's existing worktree (ONE per wave, all stages share it). A read-only reviewer needing isolation can use `--detach`. This gate only fires when `AAL_WORKTREE_ROOT` is set |
-| Stop-time nags (stale agents, roster tripwire, prune-inboxes, backlog drift) | warn-only reminders — `backlog-drift-check` flags an active card whose alias matches a merged PR but isn't marked done; `backlog-drift-guard` warns on a non-whitelisted status header / lingering `[DONE]` / legacy `状态:` line; the roster tripwire warns when a team exceeds the cap — the roster warning now cautions that it scans ALL teams, so if the over-cap team isn't yours, do nothing | act on the nudge or ignore it; they never block. For a drift warn: verify the named card live, then mark it done + move it to `BACKLOG-archive.md` (or fix its status if a deploy/verify is still outstanding) |
+| Stop-time nags (stale agents, roster tripwire, prune-inboxes, backlog drift) | warn-only reminders — `backlog-drift-check` flags an active card whose alias matches a merged PR but isn't marked done; `backlog-drift-guard` warns on a non-whitelisted status header / lingering `[DONE]` / a residual body-level `status:` line (status belongs in the header, history under `log:`); the roster tripwire warns when a team exceeds the cap — the roster warning now cautions that it scans ALL teams, so if the over-cap team isn't yours, do nothing | act on the nudge or ignore it; they never block. For a drift warn: verify the named card live, then mark it done + move it to `BACKLOG-archive.md` (or fix its status if a deploy/verify is still outstanding) |
 | SessionStart nudge: "installed but not yet tailored" / "self-improve last ran >24h ago" | advisory `preflight` nudges (NEVER deny) — `.claude/.pending-profile` is present (the installer dropped it, you haven't profiled/dismissed), or the durable `self-improve-last-run` marker is >24h old | run `/project-profiler` to tailor the setup, or `/self-improve` to mine `.gate-denials` + struggle-log — both PROPOSE only. To stop the profiler nudge without profiling, delete `.claude/.pending-profile`; the cadence nudge resets each time `/self-improve` runs |
 
 > **Stop tier = one `stop-dispatcher` mount.** All the Stop checks above (and the ledger-hygiene / dod-walk Stop checks) run in a single process that merges every block reason AND every warn into one turn-end **block** message (warns folded into the block reason; no separate `systemMessage` key) — the meanings in this decoder are unchanged; only the delivery is consolidated. A crashing check is isolated from the rest, and a node-less box fails OPEN (no turn-end block).
@@ -115,7 +125,7 @@ legitimate merge it can't evaluate.
 
 | When you see | It means | Do this |
 |---|---|---|
-| ledger-size warning | a session ledger nears the 256KB Read-tool ceiling | split it at line boundaries into `<name>-archive-NN.md` parts — or run `node hooks/rotate-ledger.mjs <ledger.md> --apply` to split a `## `-headed ledger by recency automatically (dry-run without `--apply`; archives to a fresh slot, never clobbers; markdown `## `-sections only — the `index.jsonl` store is split by hand) |
+| ledger-size warning | a session ledger nears the 256KB Read-tool ceiling | split it BY HAND at line boundaries into `<name>-archive-NN.md` parts, oldest half first, then check the split conserved the line count (`archive + active == original`). There is no tool for this; the `index.jsonl` store is split by hand too |
 | worktree-count warning | worktrees under `AAL_WORKTREE_ROOT` exceed the cap | prune merged worktrees |
 | Bash denied: truncating write to a ledger/archive | you ran `>` / `Out-File` / `Set-Content` onto an EXISTING `*-archive*.md` / ledger (`BACKLOG`/`plan-reviews`/`code-reviews`/`struggle-log`/`autoloop-log`) — `>` clears the file, losing its content | APPEND with `>>` (or use the Edit/Write tool — allowed), or to split write a `.tmp` then `mv` it to the next FREE `-archive-NN` slot. This gate fails OPEN (a footgun-preventer): node-absent or any uncertainty → it allows |
 
@@ -158,3 +168,120 @@ every turn-end on a node-less box is worse than skipping the check).
    a turn-end.
    → **Do this:** install node (≥18) so every gate runs as designed; until then, expect deny gates
    to block hard and warn/DoD gates to no-op.
+
+---
+
+## The leak scanner (`bin/sanitize-check.sh`) and its vocabulary
+
+The scanner reads the shipped tree and reports identity, machine-path and project-leak literals,
+CJK codepoints, and domain terms. CI runs it on every push. Run it yourself before publishing:
+
+```sh
+bash bin/sanitize-check.sh
+```
+
+Exit `0` = pass, `1` = findings, `2` = the instrument could not evaluate (refuses rather than
+reporting a tree clean). The summary goes to stdout; every hit VERBATIM goes to
+`sanitization-report.txt`, which is gitignored — CI logs are public, and an instrument that exists
+to keep unscrubbed bytes off the internet must not print them into one.
+
+### Every tracked file is either scanned or named
+
+The scan paths are a closed list, and at the repository root it names FILES (`README.md`, `LICENSE`)
+rather than the directory — so a new top-level file is outside the scan by construction. A file the
+scanner never opened is not clean, it is UNSEEN, and the two are identical in every count it prints.
+Measured on this repository: two tracked files at the root carried a developer's home directory
+through a run that reported `PASS` at 397 files.
+
+So a default run in a git worktree also checks its own denominator, and exits `2` naming any tracked
+file that no scan path covers:
+
+```text
+sanitize-check: FATAL — tracked file(s) outside every scan path, so no count below covers them:
+  <path>
+```
+
+Delete it, move it under a scanned path, or add it to `UNSCANNED_OK_LEDGER` in the script as
+`<path>|<the reason it needs no scanning>` — the reason is a required second column, because an
+entry without one records that somebody decided and never what they decided. An entry whose file
+stops being tracked is reported in the `stale-accepted` class, the same way the two other acceptance
+ledgers report a coordinate that stopped matching. The check is skipped when `AAL_SANITIZE_SCAN`
+narrows the scan (a narrowed scan is deliberately partial) and outside a git worktree (there is no
+tracked list to compare with).
+
+🔴 **Never run it under `bash -x` where the output is public.** The trace prints the `printf` that
+writes the pattern file, i.e. **the whole loaded vocabulary, in the clear** — the one thing the
+report itself is careful never to echo. Debug it with a redirected trace you keep locally.
+
+### The vocabulary is LOADED, not shipped
+
+The forbidden-pattern set and the domain denylist live in a JSON file OUTSIDE the tree, so this
+repository ships a working leak gate that spells out none of the literals it blocks. The scanner
+resolves it as:
+
+```sh
+AAL_SANITIZE_WORDLIST="${AAL_SANITIZE_WORDLIST:-<repo>/.claude/sanitize-wordlist.json}"
+```
+
+🔴 **A run with no wordlist certifies a STRICT SUBSET.** It reports `PARTIAL PASS … 2 arms not
+configured` and the header reads `wordlist: not configured`. That is the normal reading on a hosted
+lane, which checks out no `.claude/`. **Read the report header before treating a report as covering
+the pattern and denylist arms** — the CJK range check is wordlist-free and always runs; the other
+two are the wordlist's.
+
+An arm whose vocabulary loads **empty** is reported as not configured too, per arm, and the verdict
+degrades to `PARTIAL PASS`. A wordlist that is valid JSON and empty must not read as a clean pass.
+
+### Wordlist schema
+
+```json
+{
+  "patterns": ["<ERE, matched case-insensitively>"],
+  "deny": ["<substring, matched case-insensitively, anywhere>"],
+  "denyAddressScoped": ["<substring, matched ONLY in an address or URL context>"]
+}
+```
+
+- **`patterns`** — extended regular expressions. Every entry is a non-empty single-line string.
+- **`deny`** — plain substrings, matched case-insensitively anywhere on a line.
+- **`denyAddressScoped`** — **OPTIONAL**, defaults to empty. Same matching as `deny`, but a hit
+  counts **only on a line that is an address or a URL**: an `http(s)` URL, a git remote, an
+  `<owner>/<repo>` install pair, or a manifest field whose KEY is an address (`homepage`,
+  `repository`, `url`, `source`, `marketplace`, `bugs`, `funding`). It deliberately does **not**
+  fire on an `author`, `owner`, `maintainer` or copyright line.
+
+  **Why the third key exists.** A repository owned by an organisation whose code has a personal
+  author is the ordinary shape of an open-source manifest — `repository` is an address, `author` is
+  a person. An unscoped substring deny on a maintainer's handle therefore fires on exactly the
+  author lines that are supposed to carry it. Scoping by CONTEXT rather than by `file:line` is what
+  keeps this stable: a coordinate rots the moment any edit moves a line, a predicate does not.
+
+  A wordlist written before this key existed loads unchanged — the key is optional and its absence
+  is byte-identical to an empty one.
+
+### Accepted-line ledgers
+
+`ACCEPT_CJK`, `ACCEPT_DENY` and `ACCEPT_PATTERNS` inside the scanner exempt individual `file:line`
+coordinates — the third one covers this project's OWN identity (its repository URL and org), which
+by definition matches an identity pattern and by definition must ship. All three are walked as a
+**LIST**, not driven by hits, so an entry whose subject stopped matching reports `stale-accepted`
+instead of rotting unnoticed. Re-derive an entry by running the check and reading its hit — never by
+adjusting the line number, because an offset cannot repair a coordinate whose subject no longer
+exists.
+
+The counts are published in their own line and are never summed into the findings:
+
+```text
+Accepted lines:   cjk 0 · denylist 7 · patterns 4 (published separately, never summed)
+```
+
+Two cases suppress the staleness question rather than answering it, because in both the ledger
+cannot be judged by this run — and a not-run reading printed as a finding is the failure this
+instrument exists to prevent:
+
+- **the arm did not load.** With no wordlist the pattern arm carries one fallback term, so every
+  identity coordinate misses for a reason unrelated to the ledger. Such a run already reports
+  `arms not configured` and never claims the tree is clean.
+- **the tree is not the one the ledger describes.** The pattern ledger applies ALL-OR-NOTHING: if
+  any of its coordinates names a file this scan did not cover, none of them is judged. Without that,
+  every synthesized fixture tree reports the built-in ledger as stale.

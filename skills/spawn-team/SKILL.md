@@ -1,6 +1,6 @@
 ---
 name: spawn-team
-description: Spawn and run a 5-agent pipeline team (planner → plan-reviewer → architect → [designer] → developer → code-reviewer) via the Agent Teams feature. Tracks waves on BACKLOG.md (the harness task store is BANNED), dispatches via SendMessage briefs, and shuts down done agents. Includes the gate-driven autoloop + anti-stall protocol.
+description: Spawn and run a 6-agent pipeline team (planner → plan-reviewer → architect → [designer] → developer → code-reviewer) via the Agent Teams feature. Tracks waves on BACKLOG.md (the harness task store is BANNED), dispatches via SendMessage briefs, and shuts down done agents. Includes the gate-driven autoloop + anti-stall protocol.
 ---
 
 # Spawn Agent Team
@@ -11,7 +11,7 @@ DO NOT use sub-agents or Task agents.
 2. Dispatch via `Agent({team_name, name, subagent_type})` with the full spec in the SendMessage brief; each agent works in its own worktree
 3. Before cleanup, verify all branches are merged to main
 
-## 5-agent pipeline roles
+## 6-agent pipeline roles
 
 - `planner` — writes the plan doc, enters plan mode + ExitPlanMode
 - `plan-reviewer` — Mode A only: reviews the plan doc post-Planner, pre-Architect

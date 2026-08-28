@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# block-lead-plan-approval-response.sh
-# PreToolUse hook (matcher: SendMessage)
-# Blocks team-lead from sending a `type: plan_approval_response` message directly.
-# Plan approval is plan-reviewer Mode A's job — team-lead must dispatch the
-# reviewer first, then forward the reviewer's verdict.
-#
-# stdin = harness-provided JSON: {tool_name, tool_input, ...}
-# The tool_input.message field is what we inspect; if it carries the
-# plan_approval_response type token (any whitespace), we block.
 set -euo pipefail
 case ":${AAL_GATES:-commit-hygiene:pipeline-roles:merge-gates:ledger-hygiene:dod-walk:}:" in *":pipeline-roles:"*) ;; *) exit 0 ;; esac
 source "$(dirname "$0")/lib/activation.sh"
@@ -15,7 +6,6 @@ aal_is_autoloop_project || exit 0
 source "$(dirname "$0")/lib/parse-json.sh"
 
 if ! aal_have_node; then
-  # PreToolUse(SendMessage) role gate: node-absent must NOT silently allow a lead self-approval → fail-CLOSED.
   cat <<'JSON'
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"BLOCKED: awesome-autoloop requires node on PATH to evaluate this plan-approval role gate, and node was not found. Install node >=18, or disable the plugin / remove the pipeline-roles group from AAL_GATES. (Fail-closed: a gate that can't evaluate must not silently allow a self-approval.)"}}
 JSON
@@ -24,16 +14,11 @@ fi
 
 PAYLOAD=$(cat)
 
-# Quick check: tool_name must be SendMessage. If not, no-op.
 TOOL=$(json_get "$PAYLOAD" tool_name)
 if [ "$TOOL" != "SendMessage" ]; then
   exit 0
 fi
 
-# Extract the message body. It can be a string OR an object (the harness accepts
-# both shapes per the SendMessage tool schema). json_get can't stringify an object
-# (it returns "[object Object]"), so stringify here: a string passes through, an
-# object is JSON.stringified — then grep the literal type token either way.
 MSG=$(printf '%s' "$PAYLOAD" | node -e "
 let s='';
 process.stdin.on('data',c=>s+=c);
@@ -48,7 +33,6 @@ process.stdin.on('end',()=>{
 });
 " 2>/dev/null || echo "")
 
-# Token match — be permissive on whitespace around the colon and around quotes.
 if printf '%s' "$MSG" | grep -Eq '"type"[[:space:]]*:[[:space:]]*"plan_approval_response"'; then
   cat <<'JSON'
 {

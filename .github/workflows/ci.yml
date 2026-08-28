@@ -24,9 +24,42 @@ jobs:
     name: hook suite (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     # Job-level wall backstop (AC-7). Anchored on the worst-case per-JOB sum, not run-all.sh's
-    # per-test 300s cap. Observed local MSYS run-all.sh wall ~5.6 min (spawn-heavy); the full
-    # three-piece suite on the slowest host lands well under this with generous CI headroom.
-    timeout-minutes: 20
+    # per-test 300s cap.
+    #
+    # 🔴 The anchor is a HOSTED reading, never a local one. The previous value was derived from an
+    # "observed local MSYS run-all.sh wall ~5.6 min" and called the result "generous CI headroom";
+    # the headroom it actually bought measured 32 SECONDS, and the next commit consumed it. A local
+    # Git-Bash wall cannot anchor this: it is one machine, one shell, and the slowest lane is a
+    # hosted windows-latest runner whose process spawn dominates the total.
+    #
+    # Derivation. Every figure here is a MEASURED hosted windows-latest wall, not a projection:
+    #   19m28s (1168s)  @ 9d9e033 -- completed, reported 146/4
+    #   20m17s (1217s)  @ aceede2 -- CANCELLED exactly at the old 20m wall, so it had NO total,
+    #                   and the lane went unmeasured for two consecutive heads
+    #   21m11s (1271s)  @ ce4abb7 -- COMPLETED under this budget, reported 150/0
+    #   20m19s (1219s)  @ dd687cc -- COMPLETED, reported 150/0
+    # ⇒ the lane needed 71 SECONDS more than the old constant allowed, and BOTH completed readings
+    # are over the old 20m wall (by 71s and by 19s). "Generous CI headroom" was never generous: at
+    # 9d9e033 it was 32s, and the next commit spent it.
+    # ⇒ run-to-run spread on identical work is ~52s (1219..1271s), so a budget set near the wall is
+    # a coin flip even when nothing changes. That spread is why the margin below is large.
+    #
+    # anchor     = 21m11s, the WORST measured wall (on ce4abb7) -- deliberately not the latest one.
+    #              This list is the set of readings that existed when the line was written; the
+    #              constant is NOT re-derived per commit, so a later head will have a reading that
+    #              is not in it. Re-measure before changing the number, per the ratchet below.
+    # projection = 29m27s, what this constant was originally set from, before any complete reading
+    #              existed (1168s x 1.23 twice; +23% was the worst inter-round growth seen on the
+    #              lanes that did complete). The measurement landed BELOW it, so the projection was
+    #              conservative rather than wrong.
+    # margin     = 45m - 21m11s = 23m49s (1429s), i.e. 112% of the measured wall.
+    # Both numbers are kept on purpose: the margin is computed against the MEASUREMENT, and a reader
+    # shown only one of them cannot tell which one it was computed against.
+    #
+    # 🔴 This is a ONE-WAY RATCHET: every gate added, and every fixture that stops no-op'ing, spends
+    # some of that 1429s. That number is what the next reader watches being consumed -- re-measure
+    # the windows lane and re-derive, rather than nudging the constant when it next goes red.
+    timeout-minutes: 45
     strategy:
       # Don't cancel sibling OS legs when one fails -- a portability regression should show
       # WHICH platform broke, not mask the rest.
@@ -68,7 +101,8 @@ jobs:
 
       # The scanner adds the runtime OS user as a forbidden pattern to catch the AUTHOR's real name
       # leaking into a shipped file. It now SKIPS that augmentation in CI at the source (it reads the
-      # CI env var — sanitize-check.sh:145), because the hosted OS login is a generic service account
+      # CI env var — the `[ -z "${CI:-}" ]` guard in sanitize-check.sh, cited by CONTENT because a
+      # line number goes stale silently), because the hosted OS login is a generic service account
       # (`runner` / `runneradmin`) that occurs benignly across the tree. So the real runner env flows
       # straight through here with NO masking — the source guard, not a workflow-layer blank, is what
       # keeps the generic login from false-positiving.

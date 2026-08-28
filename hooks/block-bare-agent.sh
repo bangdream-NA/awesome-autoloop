@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# PreToolUse hook on Agent: BLOCK bare Agent calls without explicit team_name
-# ONLY checks tool_input for team_name — filesystem fallback was too permissive
 
 set -euo pipefail
 case ":${AAL_GATES:-commit-hygiene:pipeline-roles:merge-gates:ledger-hygiene:dod-walk:}:" in *":pipeline-roles:"*) ;; *) exit 0 ;; esac
@@ -18,20 +16,16 @@ fi
 
 INPUT=$(cat)
 
-# Require explicit non-empty team_name in the Agent tool input — no fallbacks.
-# Use json_get so `team_name:""` (empty string) is correctly treated as missing.
 TEAM=$(json_get "$INPUT" team_name)
 
 if [ -z "$TEAM" ]; then
-  # Auto-log to struggle log. Resolve project dir via env / git root / home — never
-  # hardcode a project default.
   DATE=$(date +%Y-%m-%d)
   PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo "")}"
   STRUGGLE_LOG=""
   if [ -n "$PROJECT_DIR" ] && [ -d "$PROJECT_DIR/.claude" ]; then
     STRUGGLE_LOG="$PROJECT_DIR/.claude/struggle-log.md"
   else
-    STRUGGLE_LOG="$HOME/.claude/struggle-log.md"
+    STRUGGLE_LOG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/struggle-log.md"
   fi
   [ -f "$STRUGGLE_LOG" ] && echo "| $DATE | team-lead | Agent spawn | Bare Agent call blocked by PreToolUse hook | No team_name in tool_input | Auto-blocked |" >> "$STRUGGLE_LOG" 2>/dev/null || true
   aal_log_denial "block-bare-agent" "bare-agent-no-team" "Agent spawn without team_name"
@@ -42,11 +36,6 @@ EOF
   exit 0
 fi
 
-# Pipeline roles must be REAL roster teammates (with the SendMessage/TaskUpdate mailbox),
-# NOT anonymous one-shot sub-agents. A dispatch with team_name but NO `name` spawns
-# mailbox-less (delivers via task-notification, never joins the roster); run_in_background:true
-# likewise makes a one-shot bg sub-agent, not a persistent teammate. Either = a bare
-# sub-agent in disguise (team_name alone is necessary, NOT sufficient).
 STYPE=$(json_get "$INPUT" subagent_type)
 NAME=$(json_get "$INPUT" name)
 BG=$(echo "$INPUT" | grep -oE '"run_in_background"[[:space:]]*:[[:space:]]*true' || true)

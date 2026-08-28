@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-// EXAMPLE — not mounted; copy into your own ~/.claude/hooks/ + wire it in your settings.json.
-//
-// A server-op gate: a SERVER/PROD operation (ssh to your host, a deploy script, an ingest CLI,
-// scp to prod) is DENIED unless the recent session transcript shows the lead READ a runbook/walk
-// file first. Fail-closed: no runbook-Read evidence → deny. This forces "read the runbook before
-// you touch prod" instead of reverse-engineering the box with ad-hoc probes.
-//
-// This is the SHAPE of a project-specific gate; replace the PROD_OP patterns below with your own
-// server-op signatures (your host alias, your deploy script name, your ingest CLI, etc.).
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -20,27 +11,50 @@ if ((payload.tool_name || "") !== "Bash") process.exit(0);
 const cmd = (payload.tool_input && payload.tool_input.command) || "";
 if (!cmd) process.exit(0);
 
-// --- Is this a SERVER/PROD operation? Replace with YOUR server-op signatures. ---
-const PROD_OP = [
-  /\bssh\s+(?:[\w.-]+@)?<your-host>\b/,   // any ssh to your prod host (incl read-only recon)
-  /\bscp\b[^\n]*\b<your-host>\b/,          // scp to/from your prod host
-  /<your-deploy-script>/,                  // your deploy entry point
-  /<your-ingest-cli>/,                     // your data-ingest CLI subcommand(s)
+// Two classes, and keeping them apart is what stops the false positives.
+// STRONG_OP names the operation itself — reaching the host IS the server op, wherever it appears.
+// SCRIPT_OP names a SCRIPT, and a script name is only an operation when it sits in an EXECUTION
+// context. `shellcheck --shell=bash scripts/provision/<your-deploy-script>` mentions the script and
+// runs nothing; matching it denies a lint.
+const STRONG_OP = [
+  /\bssh\s+(?:[\w.-]+@)?<your-host>\b/,
+  /\bscp\b[^\n]*\b<your-host>\b/,
 ];
-if (!PROD_OP.some((re) => re.test(cmd))) process.exit(0);
+const SCRIPT_OP = [
+  /<your-deploy-script>/,
+  /<your-ingest-cli>/,
+  /<your-publish-command>/,
+];
+const RUNNER_KEYWORD = /\b(?:sudo|bash|corepack|pnpm|npm|node|ssh|exec)\b|(?<![.\w])sh\b/;
+const SCRIPT_IN_RUN_POSITION =
+  /(?:^|[;&|]\s*|\s\.?\/[\w./-]*\/?|\s\/[\w./-]*\/)(?:<your-deploy-script>|<your-ingest-cli>|<your-publish-command>)/;
+function hasExecCtx(c) { return RUNNER_KEYWORD.test(c) || SCRIPT_IN_RUN_POSITION.test(c); }
 
-// --- Escape hatch: a fresh manual attestation receipt (only for transcript-resolution failure) ---
-const RECEIPT = join(homedir(), ".claude", ".server-op-runbook-read");
-const FRESH_MS = 4 * 60 * 60 * 1000; // 4h
+// Quoted spans, heredoc bodies and --flag=values are DATA, not command text. Strip them before
+// asking whether a script name is being run, so a name inside a commit message or a heredoc cannot
+// trigger the gate.
+const stripData = (c) => c
+  .replace(/<<-?\s*["']?\w+["']?[\s\S]*$/, " <<HEREDOC-DATA")
+  .replace(/(--[\w-]+)=\S+/g, "$1=OPT-DATA")
+  .replace(/'(?:[^'\\]|\\.)*'/g, "'DATA'")
+  .replace(/"(?:[^"\\]|\\.)*"/g, '"DATA"');
+const cmdStripped = stripData(cmd);
+
+const isProdOp =
+  STRONG_OP.some((re) => re.test(cmd)) ||
+  (SCRIPT_OP.some((re) => re.test(cmdStripped)) && hasExecCtx(cmdStripped));
+if (!isProdOp) process.exit(0);
+
+const RECEIPT = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), ".server-op-runbook-read");
+const FRESH_MS = 4 * 60 * 60 * 1000;
 function receiptFresh() {
   try { return Date.now() - statSync(RECEIPT).mtimeMs < FRESH_MS; } catch { return false; }
 }
 
-// --- Primary: did the recent transcript Read a runbook/walk file? ---
 const RUNBOOK_PATH = /(?:[\/\\](?:runbooks?|walks)[\/\\])|runbook/i;
 function transcriptHasRecentRunbookRead(sessionId) {
-  if (!sessionId) return null; // can't resolve → null (distinct from false)
-  const projects = join(homedir(), ".claude", "projects");
+  if (!sessionId) return null;
+  const projects = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), "projects");
   let file = null;
   try {
     for (const d of readdirSync(projects)) {
@@ -52,7 +66,7 @@ function transcriptHasRecentRunbookRead(sessionId) {
   let text = "";
   try { text = readFileSync(file, "utf8"); } catch { return null; }
   const lines = text.split("\n");
-  const tail = lines.slice(Math.max(0, lines.length - 900)); // recent tail only
+  const tail = lines.slice(Math.max(0, lines.length - 900));
   const now = Date.now();
   for (let i = tail.length - 1; i >= 0; i--) {
     const ln = tail[i];
@@ -68,7 +82,7 @@ function transcriptHasRecentRunbookRead(sessionId) {
 
 const verdict = transcriptHasRecentRunbookRead(payload.session_id);
 if (verdict === true) process.exit(0);
-if (verdict === null && receiptFresh()) process.exit(0); // transcript unresolved + fresh receipt → allow
+if (verdict === null && receiptFresh()) process.exit(0);
 
 const reason =
   "SERVER-OP GATE: this is a server/prod operation but NO recent runbook/walk Read was found in the " +
@@ -77,7 +91,7 @@ const reason =
   "it blindly and gets the premise wrong. " +
   (verdict === null
     ? "[transcript could not be resolved] If you HAVE read the runbook, record it: " +
-      "`printf '%s' '<runbook-path>' > ~/.claude/.server-op-runbook-read` then rerun."
+      `\`printf '%s' '<runbook-path>' > ${RECEIPT}\` then rerun.`
     : "");
 
 process.stdout.write(JSON.stringify({
